@@ -50,7 +50,7 @@ def _load_api_key() -> str:
         for line in env_path.read_text(encoding="utf-8").splitlines():
             line = line.strip()
             if line.startswith("GEMINI_API_KEY="):
-                api_key = line.split("=", 1)[1].strip()
+                api_key = line.split("=", 1)[1].strip().strip('"').strip("'")
                 if api_key:
                     logger.debug("API key loaded from .env file")
                     return api_key

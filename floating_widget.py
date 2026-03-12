@@ -217,15 +217,30 @@ class FloatingWidget(ctk.CTkToplevel):
         self._input_field.bind("<Control-v>", self._on_paste)
         self._input_field.bind("<Control-V>", self._on_paste)
 
+        # ボタン行
+        btn_frame = ctk.CTkFrame(panel, fg_color="transparent")
+        btn_frame.grid(row=2, column=0, padx=12, pady=(0, 12), sticky="ew")
+        btn_frame.grid_columnconfigure(0, weight=1)
+
+        # 貼り付けボタン（日本語入力用）
+        self._paste_btn = ctk.CTkButton(
+            btn_frame, text="Paste (日本語)", width=120, height=32,
+            fg_color="transparent", hover_color=_BORDER,
+            text_color=_TEXT_SUB, font=ctk.CTkFont(size=11),
+            border_width=1, border_color=_BORDER, corner_radius=16,
+            command=self._on_paste_btn,
+        )
+        self._paste_btn.grid(row=0, column=0, sticky="w")
+
         # 送信ボタン
         self._send_btn = ctk.CTkButton(
-            panel, text="Send  ↵", width=90, height=36,
+            btn_frame, text="Send  ↵", width=90, height=36,
             fg_color=_ACCENT, hover_color=_ACCENT_HOVER,
             text_color="#ffffff", font=ctk.CTkFont(size=13, weight="bold"),
             corner_radius=18,
             command=self._on_send,
         )
-        self._send_btn.grid(row=2, column=0, padx=12, pady=(0, 12), sticky="e")
+        self._send_btn.grid(row=0, column=1, padx=(8, 0))
 
     # ── 公開メソッド ───────────────────────────────────────────────────────
 
@@ -300,13 +315,22 @@ class FloatingWidget(ctk.CTkToplevel):
     # ── 内部イベント ───────────────────────────────────────────────────────
 
     def _on_paste(self, event) -> str:
-        """クリップボードから貼り付け（日本語IME対応）。"""
+        """Ctrl+V クリップボード貼り付け（日本語IME対応）。"""
         try:
             text = self.clipboard_get()
             self._input_field.insert("insert", text)
         except Exception:
             pass
         return "break"
+
+    def _on_paste_btn(self) -> None:
+        """貼り付けボタン押下。"""
+        try:
+            text = self.clipboard_get()
+            self._input_field.insert("insert", text)
+            self._input_field.focus_set()
+        except Exception:
+            pass
 
     def _on_enter_key(self, event) -> str:
         if event.state & 0x1:
