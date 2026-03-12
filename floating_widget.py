@@ -213,6 +213,9 @@ class FloatingWidget(ctk.CTkToplevel):
         )
         self._input_field.grid(row=1, column=0, sticky="ew", padx=12, pady=8)
         self._input_field.bind("<Return>", self._on_enter_key)
+        # 日本語: Ctrl+V でクリップボードから貼り付け
+        self._input_field.bind("<Control-v>", self._on_paste)
+        self._input_field.bind("<Control-V>", self._on_paste)
 
         # 送信ボタン
         self._send_btn = ctk.CTkButton(
@@ -295,6 +298,15 @@ class FloatingWidget(ctk.CTkToplevel):
         self._on_copy_callback = callback
 
     # ── 内部イベント ───────────────────────────────────────────────────────
+
+    def _on_paste(self, event) -> str:
+        """クリップボードから貼り付け（日本語IME対応）。"""
+        try:
+            text = self.clipboard_get()
+            self._input_field.insert("insert", text)
+        except Exception:
+            pass
+        return "break"
 
     def _on_enter_key(self, event) -> str:
         if event.state & 0x1:

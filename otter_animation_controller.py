@@ -45,6 +45,11 @@ class OtterAnimationController:
             logger.warning("Pillow not available, using placeholders only")
             return
 
+        try:
+            import customtkinter as ctk
+        except ImportError:
+            ctk = None
+
         for state in AnimationState:
             gif_path = self._assets_dir / f"{state.value}.gif"
             if not gif_path.exists():
@@ -52,9 +57,19 @@ class OtterAnimationController:
                 continue
             try:
                 img = Image.open(gif_path)
+                w, h = img.size
                 frames = []
                 while True:
-                    frames.append(ImageTk.PhotoImage(img.copy().convert("RGBA")))
+                    pil_frame = img.copy().convert("RGBA")
+                    if ctk is not None:
+                        frame = ctk.CTkImage(
+                            light_image=pil_frame,
+                            dark_image=pil_frame,
+                            size=(w, h),
+                        )
+                    else:
+                        frame = ImageTk.PhotoImage(pil_frame)
+                    frames.append(frame)
                     try:
                         img.seek(img.tell() + 1)
                     except EOFError:
@@ -95,7 +110,8 @@ class OtterAnimationController:
 
         frame = frames[self._frame_index]
         self._label.configure(image=frame, text="")
-        self._label.image = frame  # GC 防止
+        if not hasattr(frame, '_light_image'):  # CTkImage でない場合のみ GC 防止
+            self._label.image = frame
 
         self._frame_index = (self._frame_index + 1) % len(frames)
         is_last_frame = self._frame_index == 0
