@@ -97,15 +97,16 @@ class FloatingWidget(ctk.CTkToplevel):
         self._build_input_area()
 
     def _build_header(self) -> None:
-        header = ctk.CTkFrame(self, height=44, corner_radius=0)
+        header = ctk.CTkFrame(self, height=90, corner_radius=0)
         header.grid(row=0, column=0, sticky="ew")
         header.grid_columnconfigure(1, weight=1)
         header.grid_propagate(False)
 
         # Otter 表示（アニメーション or プレースホルダー）
-        self._otter_label = ctk.CTkLabel(header, text="🦦", width=40, font=("", 22))
+        self._otter_label = ctk.CTkLabel(header, text="🦦", width=80, height=80, font=("", 22))
         self._otter_label.grid(row=0, column=0, padx=(8, 0), pady=4)
         self._animation_ctrl._label = self._otter_label  # ラベルを渡す
+        self._animation_ctrl.play(AnimationState.IDLE)   # 起動時アニメ開始
 
         # ステータスラベル
         self._status_label = ctk.CTkLabel(
