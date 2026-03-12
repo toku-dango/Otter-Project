@@ -52,7 +52,7 @@ class GeminiClient:
     def __init__(
         self,
         api_key: str,
-        model: str = "gemini-2.0-flash-thinking-exp",
+        model: str = "gemini-1.5-flash",
     ) -> None:
         genai.configure(api_key=api_key)
         self._model = genai.GenerativeModel(model)

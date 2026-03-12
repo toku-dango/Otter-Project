@@ -9,40 +9,57 @@ from otter_animation_controller import AnimationState, OtterAnimationController
 logger = logging.getLogger(__name__)
 
 _RESIZE_DEBOUNCE_MS = 500
-_COPY_FEEDBACK_MS = 1000
-_MIN_WIDTH = 300
-_MIN_HEIGHT = 200
+_COPY_FEEDBACK_MS = 1200
+_MIN_WIDTH = 320
+_MIN_HEIGHT = 240
 _DEFAULT_WIDTH = 400
-_DEFAULT_HEIGHT = 500
+_DEFAULT_HEIGHT = 560
 
-# マークダウンレンダリング用 CSS（テーマ別）
-_DARK_CSS = """
-body { font-family: "Yu Gothic","Meiryo",sans-serif; font-size:14px;
-       color:#EBEBEB; background:#2B2B2B; padding:8px; margin:0; }
-code { background:#3C3C3C; border-radius:3px; padding:2px 4px;
-       font-family:Consolas,monospace; }
-pre  { background:#3C3C3C; padding:8px; border-radius:4px; overflow-x:auto; }
-a    { color:#6AB0F5; }
-"""
-_LIGHT_CSS = """
-body { font-family: "Yu Gothic","Meiryo",sans-serif; font-size:14px;
-       color:#1A1A1A; background:#F0F0F0; padding:8px; margin:0; }
-code { background:#E0E0E0; border-radius:3px; padding:2px 4px;
-       font-family:Consolas,monospace; }
-pre  { background:#E0E0E0; padding:8px; border-radius:4px; overflow-x:auto; }
-a    { color:#1A6AAF; }
+# ── カラーパレット（ダークモード固定） ─────────────────────────────────────
+_BG          = "#0e0e12"   # 背景
+_SURFACE     = "#16161d"   # カード面
+_SURFACE2    = "#1e1e28"   # 入力欄背景
+_BORDER      = "#2a2a38"   # 境界線
+_ACCENT      = "#6c63ff"   # アクセント（パープル）
+_ACCENT_HOVER= "#857cff"
+_TEXT        = "#e8e8f0"   # 本文
+_TEXT_SUB    = "#7878a0"   # サブテキスト
+_BUBBLE_BG   = "#1e1e2e"   # AI バブル背景
+_SEND_BTN    = "#6c63ff"
+
+# マークダウン用CSS
+_CSS = f"""
+body {{
+  font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+  font-size: 14px;
+  color: {_TEXT};
+  background: {_BUBBLE_BG};
+  padding: 12px 14px;
+  margin: 0;
+  line-height: 1.6;
+}}
+code {{
+  background: #2a2a3e;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+  font-size: 13px;
+  color: #a9b7ff;
+}}
+pre {{
+  background: #13131a;
+  padding: 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+  border-left: 3px solid {_ACCENT};
+}}
+a {{ color: #a9b7ff; text-decoration: none; }}
+h1, h2, h3 {{ color: #c8c8f0; margin-top: 8px; }}
 """
 
 
 class FloatingWidget(ctk.CTkToplevel):
-    """常時最前面に表示されるフローティングUIウィジェット（Unit 2 中核コンポーネント）。
-
-    PAT-U2-01: tkinterweb → CTkTextbox フォールバック
-    PAT-U2-04: リサイズ debounce
-    PAT-U2-05: Observer コールバック
-    PAT-U2-07: System Theme Bridge
-    BR-U2-01〜08 全ルール準拠
-    """
+    """モダンダークUIのフローティングアシスタントウィジェット。"""
 
     def __init__(self, animation_ctrl: OtterAnimationController, config: ConfigManager) -> None:
         super().__init__()
@@ -62,14 +79,15 @@ class FloatingWidget(ctk.CTkToplevel):
         self._build_ui()
         self._restore_geometry()
 
-    # ── ウィンドウ設定 ──────────────────────────────────────────────────
+    # ── ウィンドウ設定 ──────────────────────────────────────────────────────
 
     def _setup_window(self) -> None:
-        # self.overrideredirect(True)         # タイトルバーなし（WSLg互換性のため一時無効）
-        self.wm_attributes("-topmost", True)  # 常時最前面（BR-U2-07）
-        self.wm_attributes("-alpha", 0.95)    # 半透明
-        self.resizable(True, True)            # リサイズ可能（BR-U2-02）
+        self.configure(fg_color=_BG)
+        self.wm_attributes("-topmost", True)
+        self.wm_attributes("-alpha", 0.97)
+        self.resizable(True, True)
         self.minsize(_MIN_WIDTH, _MIN_HEIGHT)
+        self.title("Otter")
         self.bind("<Configure>", self._on_configure)
 
     def _restore_geometry(self) -> None:
@@ -85,7 +103,7 @@ class FloatingWidget(ctk.CTkToplevel):
             x, y = wc.x, wc.y
         self.geometry(f"{w}x{h}+{x}+{y}")
 
-    # ── UI 構築 ─────────────────────────────────────────────────────────
+    # ── UI 構築 ─────────────────────────────────────────────────────────────
 
     def _build_ui(self) -> None:
         self.grid_columnconfigure(0, weight=1)
@@ -93,75 +111,120 @@ class FloatingWidget(ctk.CTkToplevel):
 
         self._build_header()
         self._build_response_area()
-        self._build_copy_button()
         self._build_input_area()
 
     def _build_header(self) -> None:
-        header = ctk.CTkFrame(self, height=95, corner_radius=0)
+        header = ctk.CTkFrame(self, height=72, fg_color=_SURFACE, corner_radius=0)
         header.grid(row=0, column=0, sticky="ew")
         header.grid_columnconfigure(1, weight=1)
         header.grid_propagate(False)
 
-        # Otter 表示（アニメーション or プレースホルダー）
-        self._otter_label = ctk.CTkLabel(header, text="", width=120, height=80, font=("", 22))
-        self._otter_label.grid(row=0, column=0, padx=(8, 0), pady=4)
-        self._animation_ctrl._label = self._otter_label  # ラベルを渡す
-        self._animation_ctrl.play(AnimationState.IDLE)   # 起動時アニメ開始
-
-        # ステータスラベル
-        self._status_label = ctk.CTkLabel(
-            header, text="", anchor="w", font=("Yu Gothic", 12)
+        # Otter アニメーション
+        self._otter_label = ctk.CTkLabel(
+            header, text="", width=120, height=64, fg_color="transparent"
         )
-        self._status_label.grid(row=0, column=1, padx=8, sticky="ew")
+        self._otter_label.grid(row=0, column=0, padx=(6, 0), pady=4)
+        self._animation_ctrl._label = self._otter_label
+        self._animation_ctrl.play(AnimationState.IDLE)
+
+        # タイトル＋ステータス（縦積み）
+        title_frame = ctk.CTkFrame(header, fg_color="transparent")
+        title_frame.grid(row=0, column=1, sticky="w", padx=4)
+
+        ctk.CTkLabel(
+            title_frame, text="Otter", font=ctk.CTkFont(size=15, weight="bold"),
+            text_color=_TEXT, fg_color="transparent"
+        ).pack(anchor="w")
+
+        self._status_label = ctk.CTkLabel(
+            title_frame, text="Ready", font=ctk.CTkFont(size=11),
+            text_color=_TEXT_SUB, fg_color="transparent"
+        )
+        self._status_label.pack(anchor="w")
 
         # 最小化ボタン
         self._minimize_btn = ctk.CTkButton(
             header, text="▼", width=32, height=32,
+            fg_color="transparent", hover_color=_BORDER,
+            text_color=_TEXT_SUB, font=ctk.CTkFont(size=11),
             command=self._toggle_minimize,
         )
         self._minimize_btn.grid(row=0, column=2, padx=(0, 8), pady=4)
 
-        # ドラッグバインド（ヘッダー領域のみ）（BR-U2-01）
-        for widget in (header, self._otter_label, self._status_label):
+        # ドラッグ
+        for widget in (header, self._otter_label, title_frame):
             widget.bind("<ButtonPress-1>", self._on_drag_start)
             widget.bind("<B1-Motion>", self._on_drag_motion)
             widget.bind("<ButtonRelease-1>", self._on_drag_release)
 
     def _build_response_area(self) -> None:
-        """PAT-U2-01: tkinterweb → CTkTextbox フォールバック。"""
+        """応答表示エリア（マークダウン対応）。"""
+        outer = ctk.CTkFrame(self, fg_color=_BUBBLE_BG, corner_radius=0)
+        outer.grid(row=1, column=0, sticky="nsew")
+        outer.grid_columnconfigure(0, weight=1)
+        outer.grid_rowconfigure(0, weight=1)
+
         try:
             from tkinterweb import HtmlFrame
-            self._response_area = HtmlFrame(self, messages_enabled=False)
+            self._response_area = HtmlFrame(outer, messages_enabled=False, background=_BUBBLE_BG)
             self._use_html = True
             logger.debug("Using tkinterweb for markdown rendering")
         except Exception:
-            self._response_area = ctk.CTkTextbox(self, state="disabled", wrap="word")
+            self._response_area = ctk.CTkTextbox(
+                outer, state="disabled", wrap="word",
+                fg_color=_BUBBLE_BG, text_color=_TEXT,
+                font=ctk.CTkFont(size=14), border_width=0,
+                scrollbar_button_color=_BORDER,
+            )
             self._use_html = False
             logger.debug("Using CTkTextbox as fallback renderer")
 
-        self._response_area.grid(row=1, column=0, sticky="nsew", padx=8, pady=(4, 0))
-
-    def _build_copy_button(self) -> None:
-        self._copy_btn = ctk.CTkButton(
-            self, text="Copy", height=28, command=self._on_copy_clicked,
-        )
-        self._copy_btn.grid(row=2, column=0, padx=8, pady=4, sticky="e")
-        self._copy_btn.grid_remove()  # 初期非表示
+        self._response_area.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
 
     def _build_input_area(self) -> None:
-        frame = ctk.CTkFrame(self, corner_radius=0)
-        frame.grid(row=3, column=0, sticky="ew", padx=8, pady=(0, 8))
-        frame.grid_columnconfigure(0, weight=1)
+        """入力エリア（区切り線あり）。"""
+        # 区切り線
+        sep = ctk.CTkFrame(self, height=1, fg_color=_BORDER, corner_radius=0)
+        sep.grid(row=2, column=0, sticky="ew")
 
-        self._input_field = ctk.CTkTextbox(frame, height=80, wrap="word")
-        self._input_field.grid(row=0, column=0, sticky="ew", padx=(0, 4))
-        # Enter → 送信 / Shift+Enter → 改行（BR-U2-05）
+        # 入力パネル
+        panel = ctk.CTkFrame(self, fg_color=_SURFACE, corner_radius=0)
+        panel.grid(row=3, column=0, sticky="ew")
+        panel.grid_columnconfigure(0, weight=1)
+
+        # コピーボタン（初期非表示）
+        self._copy_btn = ctk.CTkButton(
+            panel, text="Copy response", height=24,
+            fg_color="transparent", hover_color=_BORDER,
+            text_color=_TEXT_SUB, font=ctk.CTkFont(size=11),
+            border_width=1, border_color=_BORDER,
+            command=self._on_copy_clicked,
+        )
+        self._copy_btn.grid(row=0, column=0, padx=12, pady=(8, 0), sticky="w")
+        self._copy_btn.grid_remove()
+
+        # テキスト入力
+        self._input_field = ctk.CTkTextbox(
+            panel, height=80, wrap="word",
+            fg_color=_SURFACE2, text_color=_TEXT,
+            font=ctk.CTkFont(size=14), border_width=1,
+            border_color=_BORDER, corner_radius=10,
+            scrollbar_button_color=_BORDER,
+        )
+        self._input_field.grid(row=1, column=0, sticky="ew", padx=12, pady=8)
         self._input_field.bind("<Return>", self._on_enter_key)
 
-        self._send_btn = ctk.CTkButton(frame, text="Send", width=60, command=self._on_send)
-        self._send_btn.grid(row=0, column=1)
+        # 送信ボタン
+        self._send_btn = ctk.CTkButton(
+            panel, text="Send  ↵", width=90, height=36,
+            fg_color=_ACCENT, hover_color=_ACCENT_HOVER,
+            text_color="#ffffff", font=ctk.CTkFont(size=13, weight="bold"),
+            corner_radius=18,
+            command=self._on_send,
+        )
+        self._send_btn.grid(row=2, column=0, padx=12, pady=(0, 12), sticky="e")
 
-    # ── 公開メソッド（Unit 1 インターフェース契約）──────────────────────
+    # ── 公開メソッド ───────────────────────────────────────────────────────
 
     def show(self) -> None:
         self.deiconify()
@@ -178,7 +241,6 @@ class FloatingWidget(ctk.CTkToplevel):
         return self.winfo_viewable() == 1
 
     def set_state(self, state: str) -> None:
-        """状態切替: "IDLE" / "THINKING" / "DONE"（FL-05）。"""
         anim_map = {
             "IDLE": AnimationState.IDLE,
             "THINKING": AnimationState.THINKING,
@@ -188,9 +250,9 @@ class FloatingWidget(ctk.CTkToplevel):
             self._animation_ctrl.play(anim_map[state])
 
         is_thinking = state == "THINKING"
-        input_state = "disabled" if is_thinking else "normal"
-        self._input_field.configure(state=input_state)
-        self._send_btn.configure(state=input_state)
+        ui_state = "disabled" if is_thinking else "normal"
+        self._input_field.configure(state=ui_state)
+        self._send_btn.configure(state=ui_state)
 
         if state == "DONE":
             self._copy_btn.grid()
@@ -201,21 +263,20 @@ class FloatingWidget(ctk.CTkToplevel):
         self._status_label.configure(text=message)
 
     def display_response(self, text: str) -> None:
-        """マークダウンをレンダリングして表示する（FL-06）。"""
         self._last_response = text
         if self._use_html:
             try:
                 import markdown
-                css = _DARK_CSS if ctk.get_appearance_mode() == "Dark" else _LIGHT_CSS
                 html = markdown.markdown(
                     text, extensions=["fenced_code", "tables", "nl2br"]
                 )
-                self._response_area.load_html(f"<style>{css}</style><body>{html}</body>")
+                self._response_area.load_html(
+                    f"<style>{_CSS}</style><body>{html}</body>"
+                )
                 return
             except Exception as e:
-                logger.warning("Markdown render failed, fallback to plain: %s", type(e).__name__)
+                logger.warning("Markdown render failed: %s", type(e).__name__)
 
-        # プレーンテキストフォールバック
         self._response_area.configure(state="normal")
         self._response_area.delete("0.0", "end")
         self._response_area.insert("0.0", text)
@@ -233,13 +294,13 @@ class FloatingWidget(ctk.CTkToplevel):
     def on_copy(self, callback: Callable[[], None]) -> None:
         self._on_copy_callback = callback
 
-    # ── 内部イベントハンドラ ─────────────────────────────────────────────
+    # ── 内部イベント ───────────────────────────────────────────────────────
 
     def _on_enter_key(self, event) -> str:
-        if event.state & 0x1:  # Shift が押されている → 改行（BR-U2-05）
+        if event.state & 0x1:
             return ""
         self._on_send()
-        return "break"  # デフォルトの改行を抑制
+        return "break"
 
     def _on_send(self) -> None:
         text = self._input_field.get("0.0", "end").strip()
@@ -250,24 +311,20 @@ class FloatingWidget(ctk.CTkToplevel):
             self._on_submit_callback(text)
 
     def _on_copy_clicked(self) -> None:
-        """コピーフィードバック（BR-U2-06）。"""
-        self._copy_btn.configure(text="✓ Copied!")
-        self.after(_COPY_FEEDBACK_MS, lambda: self._copy_btn.configure(text="コピー"))
+        self._copy_btn.configure(text="Copied!")
+        self.after(_COPY_FEEDBACK_MS, lambda: self._copy_btn.configure(text="Copy response"))
         if self._on_copy_callback:
             self._on_copy_callback()
 
     def _toggle_minimize(self) -> None:
-        """最小化・復元トグル（FL-08）。"""
         if self._is_minimized:
             self.geometry(f"{self.winfo_width()}x{_DEFAULT_HEIGHT}")
             self._minimize_btn.configure(text="▼")
             self._is_minimized = False
         else:
-            self.geometry(f"{self.winfo_width()}x50")
+            self.geometry(f"{self.winfo_width()}x74")
             self._minimize_btn.configure(text="▲")
             self._is_minimized = True
-
-    # ── ドラッグ（BR-U2-01）────────────────────────────────────────────
 
     def _on_drag_start(self, event) -> None:
         self._drag_start_x = event.x
@@ -281,8 +338,6 @@ class FloatingWidget(ctk.CTkToplevel):
     def _on_drag_release(self, event) -> None:
         self._config.set_setting("widget_x", self.winfo_x())
         self._config.set_setting("widget_y", self.winfo_y())
-
-    # ── リサイズ debounce（PAT-U2-04）───────────────────────────────────
 
     def _on_configure(self, event) -> None:
         if self._resize_debounce_id:
