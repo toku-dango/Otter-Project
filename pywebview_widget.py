@@ -46,10 +46,12 @@ class _JsApi:
             self._widget._on_copy_callback()
 
     def close_session(self) -> None:
-        """閉じるボタン押下。"""
-        logger.debug("JS: close_session")
-        if self._widget._on_close_callback:
-            self._widget._on_close_callback()
+        """閉じるボタン押下 → プロセス終了。"""
+        logger.debug("JS: close_session → destroy")
+        import sys
+        if self._widget._window:
+            self._widget._window.destroy()
+        sys.exit(0)
 
     def move_window(self, dx: int, dy: int) -> None:
         """ドラッグによるウィンドウ移動。"""
