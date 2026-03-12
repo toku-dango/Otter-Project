@@ -81,6 +81,10 @@ def main() -> None:
     ctk.set_appearance_mode("system")
     ctk.set_default_color_theme("blue")
 
+    # ルートウィンドウを非表示で作成（CTkToplevel の親として必要）
+    root = ctk.CTk()
+    root.withdraw()
+
     config = ConfigManager()
     clipboard = ClipboardService()
 
@@ -133,7 +137,7 @@ def main() -> None:
     logger.info("Project Otter started. Press Ctrl+Shift+Space to activate.")
 
     # tkinter メインループ（ここでブロック）
-    widget.mainloop()
+    root.mainloop()
 
 
 if __name__ == "__main__":
