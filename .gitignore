@@ -1,0 +1,29 @@
+# 機密情報
+.env
+client_secrets.json
+token.json
+
+# 認証キャッシュ
+~/.config/project-otter/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# テスト・カバレッジ
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+*.swp
