@@ -65,7 +65,7 @@ class FloatingWidget(ctk.CTkToplevel):
     # ── ウィンドウ設定 ──────────────────────────────────────────────────
 
     def _setup_window(self) -> None:
-        self.overrideredirect(True)           # タイトルバーなし
+        # self.overrideredirect(True)         # タイトルバーなし（WSLg互換性のため一時無効）
         self.wm_attributes("-topmost", True)  # 常時最前面（BR-U2-07）
         self.wm_attributes("-alpha", 0.95)    # 半透明
         self.resizable(True, True)            # リサイズ可能（BR-U2-02）
