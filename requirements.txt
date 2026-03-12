@@ -6,10 +6,8 @@ google-genai>=1.0
 google-auth>=2.0
 
 # Unit 2: UI & Configuration
-customtkinter>=5.2
+pywebview>=4.0
 pyperclip>=1.8
-tkinterweb>=3.24
-markdown>=3.6
 
 # Testing & Quality
 pytest>=8.0
