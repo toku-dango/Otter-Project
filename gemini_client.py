@@ -1,12 +1,11 @@
 import base64
 import logging
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from io import BytesIO
 from typing import Any
 
 from google import genai
-from google.genai import types
 from PIL import Image
 
 logger = logging.getLogger(__name__)
@@ -35,7 +34,8 @@ class GeminiClient:
     def __init__(self, api_key: str, model: str = "gemini-2.5-flash") -> None:
         self._client = genai.Client(api_key=api_key)
         self._model = model
-        self._history: list[types.Content] = []
+        # 会話履歴: [{"role": "user"/"model", "parts": [{"text": "..."}]}]
+        self._history: list[dict] = []
         logger.debug("GeminiClient initialized: model=%s", model)
 
     def preload_context(self, image_base64: str) -> PreloadResult:
@@ -43,65 +43,40 @@ class GeminiClient:
         try:
             image_data = base64.b64decode(image_base64)
             image = Image.open(BytesIO(image_data))
-
             response = self._client.models.generate_content(
                 model=self._model,
                 contents=[PRELOAD_PROMPT, image],
             )
             summary = response.text
-            # 画面要約をシステムコンテキストとして履歴に追加
             self._history = [
-                types.Content(
-                    role="user",
-                    parts=[types.Part.from_text(f"[画面コンテキスト] {summary}")],
-                ),
-                types.Content(
-                    role="model",
-                    parts=[types.Part.from_text("画面の内容を確認しました。何かご質問はありますか？")],
-                ),
+                {"role": "user", "parts": [{"text": f"[画面コンテキスト] {summary}"}]},
+                {"role": "model", "parts": [{"text": "画面の内容を確認しました。何かご質問はありますか？"}]},
             ]
             logger.debug("preload_context succeeded")
-            return PreloadResult(
-                success=True,
-                context_summary=summary,
-                chat_session=self._history,
-                error_message=None,
-            )
+            return PreloadResult(success=True, context_summary=summary,
+                                 chat_session=self._history, error_message=None)
         except Exception as e:
             logger.error("preload_context failed: %s - %s", type(e).__name__, e)
             self._history = []
-            return PreloadResult(
-                success=False,
-                context_summary=None,
-                chat_session=None,
-                error_message=str(e),
-            )
+            return PreloadResult(success=False, context_summary=None,
+                                 chat_session=None, error_message=str(e))
 
     def generate_response(self, user_input: str, chat_session: Any) -> str:
         """ユーザー指示を送信し、AI応答テキストを返す（会話履歴付き）。"""
-        # 会話履歴にユーザー入力を追加
-        history = list(self._history)
-        history.append(
-            types.Content(
-                role="user",
-                parts=[types.Part.from_text(user_input)],
-            )
-        )
+        contents = self._history + [
+            {"role": "user", "parts": [{"text": user_input}]}
+        ]
 
         last_error: Exception | None = None
         for attempt in range(MAX_RETRIES + 1):
             try:
                 response = self._client.models.generate_content(
                     model=self._model,
-                    contents=history,
+                    contents=contents,
                 )
                 result = response.text
-                # 応答を履歴に追加
-                self._history = history + [
-                    types.Content(
-                        role="model",
-                        parts=[types.Part.from_text(result)],
-                    )
+                self._history = contents + [
+                    {"role": "model", "parts": [{"text": result}]}
                 ]
                 logger.debug("generate_response succeeded: length=%d", len(result))
                 return result
@@ -118,15 +93,13 @@ class GeminiClient:
         raise last_error  # type: ignore[misc]
 
     def create_session(self) -> Any:
-        """新しいセッション（会話履歴をリセット）。"""
+        """会話履歴をリセットして新しいセッションを開始。"""
         self._history = []
         return self._history
 
     def is_available(self) -> bool:
         try:
-            self._client.models.generate_content(
-                model=self._model, contents="test"
-            )
+            self._client.models.generate_content(model=self._model, contents="test")
             return True
         except Exception:
             return False
