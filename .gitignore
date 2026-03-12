@@ -27,3 +27,10 @@ htmlcov/
 .vscode/
 .idea/
 *.swp
+
+# 素材・作業ファイル
+!result/
+
+# Node.js
+ui/node_modules/
+ui/dist/

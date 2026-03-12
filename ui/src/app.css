@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0e0e12;
+  --surface: #16161d;
+  --surface2: #1e1e28;
+  --border: #2a2a38;
+  --accent: #6c63ff;
+  --accent-hover: #857cff;
+  --text: #e8e8f0;
+  --text-sub: #7878a0;
+  --bubble: #1e1e2e;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+  color: var(--text);
+}
+
+#app {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+/* Markdown レンダリング */
+.response-content h1, .response-content h2, .response-content h3 {
+  color: #c8c8f0; margin-top: 0.5rem; margin-bottom: 0.25rem; font-weight: 600;
+}
+.response-content p { margin-bottom: 0.5rem; line-height: 1.6; }
+.response-content code {
+  background: #2a2a3e; border-radius: 4px; padding: 1px 5px;
+  font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+  font-size: 0.85em; color: #a9b7ff;
+}
+.response-content pre {
+  background: #13131a; padding: 12px; border-radius: 8px;
+  overflow-x: auto; border-left: 3px solid var(--accent); margin: 0.5rem 0;
+}
+.response-content pre code { background: transparent; padding: 0; color: #e8e8f0; }
+.response-content ul, .response-content ol { padding-left: 1.2rem; margin-bottom: 0.5rem; }
+.response-content li { margin-bottom: 0.15rem; line-height: 1.6; }
+.response-content a { color: #a9b7ff; text-decoration: none; }
+.response-content strong { color: #c8c8f0; }
+.response-content blockquote {
+  border-left: 3px solid var(--border); padding-left: 0.75rem;
+  color: var(--text-sub); margin: 0.5rem 0;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fadeIn 0.3s ease-out; }
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
