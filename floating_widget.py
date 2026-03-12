@@ -61,7 +61,6 @@ class FloatingWidget(ctk.CTkToplevel):
         self._setup_window()
         self._build_ui()
         self._restore_geometry()
-        self.withdraw()  # 初期状態は非表示
 
     # ── ウィンドウ設定 ──────────────────────────────────────────────────
 
