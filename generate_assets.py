@@ -5,13 +5,12 @@ assets/ フォルダに idle.gif / thinking.gif / done.gif を生成する。
 """
 
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 
 ASSETS_DIR = Path("assets")
 ASSETS_DIR.mkdir(exist_ok=True)
 
-SIZE = (80, 80)
-BG = (45, 45, 48, 0)  # 透明背景
+SIZE = (120, 80)
 
 
 def new_frame() -> tuple[Image.Image, ImageDraw.ImageDraw]:
@@ -20,47 +19,89 @@ def new_frame() -> tuple[Image.Image, ImageDraw.ImageDraw]:
     return img, draw
 
 
-def draw_otter(draw: ImageDraw.ImageDraw, cx: int, cy: int, eye_open: bool = True) -> None:
-    """カワウソの顔を描く"""
-    # 体（茶色の丸）
-    draw.ellipse([cx - 26, cy - 24, cx + 26, cy + 28], fill=(139, 90, 43, 255))
+def draw_otter_side(draw: ImageDraw.ImageDraw, x: int, y: int,
+                    leg_phase: int = 0, eye_open: bool = True) -> None:
+    """横向きカワウソを描く。x,y は体の中心。leg_phase=0~3"""
+
+    # 尻尾（後ろ）
+    tail_points = [
+        (x - 28, y + 2),
+        (x - 42, y - 8),
+        (x - 50, y + 4),
+        (x - 38, y + 12),
+    ]
+    draw.polygon(tail_points, fill=(110, 70, 30, 255))
+
+    # 体
+    draw.ellipse([x - 28, y - 14, x + 24, y + 16], fill=(139, 90, 43, 255))
+
+    # お腹（薄い色）
+    draw.ellipse([x - 18, y - 8, x + 16, y + 14], fill=(193, 150, 90, 255))
+
+    # 脚（走るアニメ）
+    leg_configs = [
+        # phase0: 前脚前・後脚後ろ
+        [(-10, 16, -6, 28), (8, 16, 18, 26)],
+        # phase1: 両脚中間
+        [(-14, 16, -10, 28), (4, 16, 14, 26)],
+        # phase2: 前脚後ろ・後脚前
+        [(-16, 16, -8, 26), (0, 16, 8, 28)],
+        # phase3: 両脚中間（逆）
+        [(-12, 16, -4, 26), (4, 16, 16, 28)],
+    ]
+    for lx1, ly1, lx2, ly2 in leg_configs[leg_phase % 4]:
+        draw.ellipse([x + lx1, y + ly1, x + lx2, y + ly2],
+                     fill=(110, 70, 30, 255))
+
+    # 頭
+    draw.ellipse([x + 8, y - 26, x + 42, y + 4], fill=(139, 90, 43, 255))
+
     # 顔（薄茶）
-    draw.ellipse([cx - 22, cy - 20, cx + 22, cy + 22], fill=(193, 140, 80, 255))
-    # 耳（左右）
-    draw.ellipse([cx - 28, cy - 28, cx - 14, cy - 14], fill=(139, 90, 43, 255))
-    draw.ellipse([cx + 14, cy - 28, cx + 28, cy - 14], fill=(139, 90, 43, 255))
-    # 鼻
-    draw.ellipse([cx - 5, cy - 2, cx + 5, cy + 5], fill=(60, 30, 10, 255))
+    draw.ellipse([x + 12, y - 22, x + 40, y + 2], fill=(193, 150, 90, 255))
+
+    # 耳
+    draw.ellipse([x + 10, y - 30, x + 22, y - 18], fill=(139, 90, 43, 255))
+    draw.ellipse([x + 26, y - 30, x + 38, y - 20], fill=(139, 90, 43, 255))
+
     # 目
     if eye_open:
-        draw.ellipse([cx - 12, cy - 12, cx - 5, cy - 5], fill=(30, 20, 10, 255))
-        draw.ellipse([cx + 5, cy - 12, cx + 12, cy - 5], fill=(30, 20, 10, 255))
-        # 目のハイライト
-        draw.ellipse([cx - 10, cy - 11, cx - 8, cy - 9], fill=(255, 255, 255, 200))
-        draw.ellipse([cx + 7, cy - 11, cx + 9, cy - 9], fill=(255, 255, 255, 200))
+        draw.ellipse([x + 26, y - 18, x + 33, y - 11], fill=(30, 20, 10, 255))
+        draw.ellipse([x + 28, y - 17, x + 30, y - 15], fill=(255, 255, 255, 200))
     else:
-        # 閉じた目（まばたき）
-        draw.arc([cx - 12, cy - 12, cx - 5, cy - 5], 0, 180, fill=(30, 20, 10, 255), width=2)
-        draw.arc([cx + 5, cy - 12, cx + 12, cy - 5], 0, 180, fill=(30, 20, 10, 255), width=2)
-    # 口（笑顔）
-    draw.arc([cx - 8, cy + 4, cx + 8, cy + 14], 0, 180, fill=(60, 30, 10, 255), width=2)
+        draw.arc([x + 26, y - 18, x + 33, y - 11], 0, 180, fill=(30, 20, 10, 255), width=2)
+
+    # 鼻
+    draw.ellipse([x + 35, y - 10, x + 41, y - 5], fill=(50, 25, 10, 255))
+
+    # ひげ
+    draw.line([x + 41, y - 9, x + 52, y - 12], fill=(200, 180, 150, 200), width=1)
+    draw.line([x + 41, y - 7, x + 52, y - 7], fill=(200, 180, 150, 200), width=1)
 
 
 def make_idle_gif() -> None:
-    """待機: ゆらゆら上下に揺れる"""
+    """待機: 楽しそうに走っている"""
     frames = []
     durations = []
 
-    # 揺れパターン: オフセット
-    offsets = [0, -2, -3, -2, 0, 2, 3, 2]
-    blink_at = 6  # このフレームでまばたき
+    # 走る：4フレームループ + 体の上下ぶれ
+    run_data = [
+        (0, 0),   # phase, y_offset
+        (1, -2),
+        (2, 0),
+        (3, -2),
+        (0, 0),
+        (1, -2),
+        (2, 0),
+        (3, -2),
+    ]
+    blink_at = 6
 
-    for i, offset in enumerate(offsets):
+    for i, (phase, y_off) in enumerate(run_data):
         img, draw = new_frame()
         eye_open = (i != blink_at)
-        draw_otter(draw, 40, 38 + offset, eye_open=eye_open)
+        draw_otter_side(draw, 30, 42 + y_off, leg_phase=phase, eye_open=eye_open)
         frames.append(img)
-        durations.append(120)
+        durations.append(100)
 
     frames[0].save(
         ASSETS_DIR / "idle.gif",
@@ -74,7 +115,7 @@ def make_idle_gif() -> None:
 
 
 def make_thinking_gif() -> None:
-    """思考中: 頭上に「...」が順番に出る"""
+    """思考中: 立ち止まって頭上に「...」"""
     frames = []
     durations = []
 
@@ -82,19 +123,21 @@ def make_thinking_gif() -> None:
         [True, False, False],
         [True, True, False],
         [True, True, True],
+        [False, True, True],
+        [False, False, True],
         [False, False, False],
     ]
 
-    for state in dot_states:
+    for i, state in enumerate(dot_states):
         img, draw = new_frame()
-        draw_otter(draw, 40, 44, eye_open=True)
+        draw_otter_side(draw, 20, 44, leg_phase=0, eye_open=True)
         # 思考の「...」
         for j, visible in enumerate(state):
             if visible:
-                x = 44 + j * 9
-                draw.ellipse([x, 12, x + 6, 18], fill=(200, 200, 220, 220))
+                x = 62 + j * 10
+                draw.ellipse([x, 8, x + 7, 15], fill=(180, 180, 220, 220))
         frames.append(img)
-        durations.append(300)
+        durations.append(280)
 
     frames[0].save(
         ASSETS_DIR / "thinking.gif",
@@ -108,30 +151,23 @@ def make_thinking_gif() -> None:
 
 
 def make_done_gif() -> None:
-    """完了: キラキラが出る"""
+    """完了: ジャンプしてキラキラ"""
     frames = []
     durations = []
 
-    sparkle_positions = [
-        [(15, 15), (60, 20)],
-        [(20, 10), (55, 25), (65, 55)],
-        [(10, 20), (60, 10), (70, 50), (15, 60)],
-        [(12, 15), (65, 15), (68, 52)],
-        [(15, 20), (60, 20)],
-        [],
-    ]
+    # ジャンプ: y_offset が上がって戻る
+    jump_offsets = [0, -6, -10, -10, -6, 0, 0]
+    sparkle_frames = [[], [], [(80, 10), (100, 20)], [(75, 8), (105, 15), (90, 25)],
+                      [(80, 12), (100, 22)], [(85, 10)], []]
 
-    for sparkles in sparkle_positions:
+    for y_off, sparkles in zip(jump_offsets, sparkle_frames):
         img, draw = new_frame()
-        draw_otter(draw, 40, 42, eye_open=True)
+        draw_otter_side(draw, 20, 44 + y_off, leg_phase=0, eye_open=True)
         for sx, sy in sparkles:
-            # 星形（十字で近似）
             draw.line([sx - 5, sy, sx + 5, sy], fill=(255, 220, 50, 230), width=2)
             draw.line([sx, sy - 5, sx, sy + 5], fill=(255, 220, 50, 230), width=2)
-            draw.line([sx - 3, sy - 3, sx + 3, sy + 3], fill=(255, 220, 50, 180), width=1)
-            draw.line([sx + 3, sy - 3, sx - 3, sy + 3], fill=(255, 220, 50, 180), width=1)
         frames.append(img)
-        durations.append(150)
+        durations.append(120)
 
     frames[0].save(
         ASSETS_DIR / "done.gif",

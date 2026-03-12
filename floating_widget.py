@@ -97,13 +97,13 @@ class FloatingWidget(ctk.CTkToplevel):
         self._build_input_area()
 
     def _build_header(self) -> None:
-        header = ctk.CTkFrame(self, height=90, corner_radius=0)
+        header = ctk.CTkFrame(self, height=95, corner_radius=0)
         header.grid(row=0, column=0, sticky="ew")
         header.grid_columnconfigure(1, weight=1)
         header.grid_propagate(False)
 
         # Otter 表示（アニメーション or プレースホルダー）
-        self._otter_label = ctk.CTkLabel(header, text="🦦", width=80, height=80, font=("", 22))
+        self._otter_label = ctk.CTkLabel(header, text="", width=120, height=80, font=("", 22))
         self._otter_label.grid(row=0, column=0, padx=(8, 0), pady=4)
         self._animation_ctrl._label = self._otter_label  # ラベルを渡す
         self._animation_ctrl.play(AnimationState.IDLE)   # 起動時アニメ開始
@@ -143,7 +143,7 @@ class FloatingWidget(ctk.CTkToplevel):
 
     def _build_copy_button(self) -> None:
         self._copy_btn = ctk.CTkButton(
-            self, text="コピー", height=28, command=self._on_copy_clicked,
+            self, text="Copy", height=28, command=self._on_copy_clicked,
         )
         self._copy_btn.grid(row=2, column=0, padx=8, pady=4, sticky="e")
         self._copy_btn.grid_remove()  # 初期非表示
@@ -153,12 +153,12 @@ class FloatingWidget(ctk.CTkToplevel):
         frame.grid(row=3, column=0, sticky="ew", padx=8, pady=(0, 8))
         frame.grid_columnconfigure(0, weight=1)
 
-        self._input_field = ctk.CTkTextbox(frame, height=60, wrap="word")
+        self._input_field = ctk.CTkTextbox(frame, height=80, wrap="word")
         self._input_field.grid(row=0, column=0, sticky="ew", padx=(0, 4))
         # Enter → 送信 / Shift+Enter → 改行（BR-U2-05）
         self._input_field.bind("<Return>", self._on_enter_key)
 
-        self._send_btn = ctk.CTkButton(frame, text="送信", width=60, command=self._on_send)
+        self._send_btn = ctk.CTkButton(frame, text="Send", width=60, command=self._on_send)
         self._send_btn.grid(row=0, column=1)
 
     # ── 公開メソッド（Unit 1 インターフェース契約）──────────────────────
@@ -251,7 +251,7 @@ class FloatingWidget(ctk.CTkToplevel):
 
     def _on_copy_clicked(self) -> None:
         """コピーフィードバック（BR-U2-06）。"""
-        self._copy_btn.configure(text="✓ コピーしました")
+        self._copy_btn.configure(text="✓ Copied!")
         self.after(_COPY_FEEDBACK_MS, lambda: self._copy_btn.configure(text="コピー"))
         if self._on_copy_callback:
             self._on_copy_callback()
