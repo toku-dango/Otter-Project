@@ -1,6 +1,5 @@
 import logging
 import threading
-import tkinter.messagebox as messagebox
 from typing import Any
 
 from gemini_client import GeminiClient
@@ -69,23 +68,14 @@ class AssistantOrchestrator:
     def on_hotkey_triggered(self) -> None:
         """ホットキー押下イベント処理（UIスレッドで実行）。
 
-        ウィジェット非表示時: キャプチャ → Gemini事前把握 → ウィジェット表示（FL-02）
-        ウィジェット表示中: 終了確認ダイアログ → 閉じる（FL-03, BR-01）
+        常に画面キャプチャ → Gemini状況把握 → 上パネルに表示。
+        ウィジェットが非表示なら表示する。
         """
-        if self._widget.is_visible():
-            # FL-03: 終了確認ダイアログ（BR-01）
-            confirmed = messagebox.askyesno(
-                "Project Otter",
-                "セッションを終了しますか？\n会話履歴は消去されません。",
-            )
-            if confirmed:
-                self._widget.hide()
-            return
+        if not self._widget.is_visible():
+            self._widget.show()
 
-        # FL-02: ウィジェット表示 → バックグラウンドでキャプチャ・事前把握
         self._widget.set_state("THINKING")
         self._widget.set_status_message("画面を確認中...")
-        self._widget.show()
 
         threading.Thread(target=self._preload_worker, daemon=True).start()
 
