@@ -9,29 +9,34 @@
   let responseText = $state('')
   let showCopy = $state(false)
 
-  // ── Python → JS グローバル関数 ─────────────────────────────────────────
-  onMount(() => {
-    window._otterSetState = (state) => {
-      otterState = state.toLowerCase()
-      showCopy = state === 'DONE'
-      if (state === 'DONE') {
+  // ── Python → JS: polling で状態更新を受け取る ────────────────────────
+  function applyUpdate(update) {
+    if (update.type === 'state') {
+      otterState = update.value.toLowerCase()
+      showCopy = update.value === 'DONE'
+      if (update.value === 'DONE') {
         setTimeout(() => { otterState = 'idle' }, 2000)
       }
+    } else if (update.type === 'status') {
+      statusMsg = update.value
+    } else if (update.type === 'response') {
+      responseText = update.value
     }
-    window._otterSetStatus = (msg) => {
-      statusMsg = msg
-    }
-    window._otterDisplayResponse = (text) => {
-      responseText = text
-    }
-    window._otterClearResponse = () => {
-      responseText = ''
-      showCopy = false
-    }
+  }
 
-    if (window.pywebview) {
-      window.pywebview.api.on_ready()
-    }
+  onMount(() => {
+    if (!window.pywebview) return
+
+    window.pywebview.api.on_ready()
+
+    const poll = setInterval(async () => {
+      try {
+        const update = await window.pywebview.api.get_pending_update()
+        if (update) applyUpdate(update)
+      } catch (_) {}
+    }, 100)
+
+    return () => clearInterval(poll)
   })
 
   // ── JS → Python ────────────────────────────────────────────────────────

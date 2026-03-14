@@ -2,10 +2,16 @@
 
 FloatingWidget（CustomTkinter）と同一インターフェースを提供する。
 AssistantOrchestrator はこのクラスを FloatingWidget の代替として使用する。
+
+【通信方式】
+  Python→JS: evaluate_js はバックグラウンドスレッドから呼ぶと
+             Windows/EdgeWebView2 でデッドロックするため使用しない。
+             代わりに JS 側が get_pending_update() を定期 polling する。
+  JS→Python: pywebview.api.* 経由（通常通り）
 """
 
-import json
 import logging
+import queue
 import threading
 from pathlib import Path
 from typing import Callable, Any
@@ -14,8 +20,7 @@ import webview
 
 logger = logging.getLogger(__name__)
 
-_ASSETS_DIR = Path(__file__).parent / "assets"
-_UI_DIR     = Path(__file__).parent / "ui" / "dist"
+_UI_DIR = Path(__file__).parent / "ui" / "dist"
 
 
 class _JsApi:
@@ -28,6 +33,13 @@ class _JsApi:
         """Svelte アプリ起動完了通知。"""
         logger.debug("JS: on_ready")
         self._widget._on_js_ready()
+
+    def get_pending_update(self) -> dict | None:
+        """JS が polling で呼び出す：保留中の状態更新を1件返す。"""
+        try:
+            return self._widget._pending_queue.get_nowait()
+        except queue.Empty:
+            return None
 
     def submit_text(self, text: str) -> None:
         """ユーザーがテキストを送信。"""
@@ -74,6 +86,7 @@ class PyWebViewWidget:
         self._js_ready = threading.Event()
         self._visible = False
         self._last_response = ""
+        self._pending_queue: queue.SimpleQueue = queue.SimpleQueue()
 
         self._on_submit_callback: Callable[[str], None] | None = None
         self._on_close_callback:  Callable[[], None]   | None = None
@@ -82,15 +95,11 @@ class PyWebViewWidget:
         self._api = _JsApi(self)
 
     def start(self, orchestrator_start_fn: Callable) -> None:
-        """PyWebView イベントループを開始（ここでブロック）。
-
-        orchestrator_start_fn は WebView 起動後に別スレッドで呼ばれる。
-        """
+        """PyWebView イベントループを開始（ここでブロック）。"""
         wc = self._config.get_widget_config()
         w = wc.width  or 400
         h = wc.height or 560
 
-        # 画面右下に配置
         import tkinter as tk
         root = tk.Tk(); root.withdraw()
         sw = root.winfo_screenwidth()
@@ -108,15 +117,11 @@ class PyWebViewWidget:
             x=x,
             y=y,
             resizable=True,
-            frameless=False,   # WSL2 では frameless=True が不安定なため False
+            frameless=False,
             on_top=True,
             background_color="#0e0e12",
             min_size=(320, 240),
         )
-
-        # assets/ を静的サーブ（GIF 用）
-        def _serve_assets(window):
-            pass  # pywebview は file:// で assets にアクセス可能
 
         def _after_start():
             self._js_ready.wait(timeout=5)
@@ -148,26 +153,19 @@ class PyWebViewWidget:
         return self._visible
 
     def set_state(self, state: str) -> None:
-        """状態を JS に通知（IDLE / THINKING / DONE）。"""
-        self._js_eval(f"window._otterSetState && window._otterSetState({json.dumps(state)})")
-        logger.debug("set_state: %s", state)
+        """状態更新をキューに積む（IDLE / THINKING / DONE）。"""
+        self._pending_queue.put({"type": "state", "value": state})
+        logger.debug("set_state: %s (queued)", state)
 
     def set_status_message(self, message: str) -> None:
-        self._js_eval(f"window._otterSetStatus && window._otterSetStatus({json.dumps(message)})")
+        """ステータスメッセージ更新をキューに積む。"""
+        self._pending_queue.put({"type": "status", "value": message})
 
     def display_response(self, text: str) -> None:
+        """応答テキストをキューに積む。"""
         self._last_response = text
-        logger.debug("display_response: length=%d", len(text))
-        if self._window and self._js_ready.is_set():
-            try:
-                fn_type = self._window.evaluate_js("typeof window._otterDisplayResponse")
-                logger.debug("display_response: _otterDisplayResponse type=%s", fn_type)
-                result = self._window.evaluate_js(
-                    f"window._otterDisplayResponse && (window._otterDisplayResponse({json.dumps(text)}), 'ok')"
-                )
-                logger.debug("display_response: result=%s", result)
-            except Exception as e:
-                logger.warning("display_response: evaluate_js failed: %s", e)
+        self._pending_queue.put({"type": "response", "value": text})
+        logger.debug("display_response: length=%d (queued)", len(text))
 
     def get_last_response(self) -> str:
         return self._last_response
@@ -192,12 +190,3 @@ class PyWebViewWidget:
     def destroy(self) -> None:
         if self._window:
             self._window.destroy()
-
-    # ── 内部ヘルパー ───────────────────────────────────────────────────────
-
-    def _js_eval(self, script: str) -> None:
-        if self._window and self._js_ready.is_set():
-            try:
-                self._window.evaluate_js(script)
-            except Exception as e:
-                logger.warning("evaluate_js failed: %s", e)
