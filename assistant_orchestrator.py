@@ -117,6 +117,7 @@ class AssistantOrchestrator:
             self._session.chat_session = chat
             if summary:
                 self._session_mgr.update_preload_summary(self._session.session_id, summary)
+                self._widget.set_context_summary(summary)
             self._widget.set_state("IDLE")
             self._widget.set_status_message("画面を確認しました ✓")
         else:

@@ -167,6 +167,11 @@ class PyWebViewWidget:
         self._pending_queue.put({"type": "response", "value": text})
         logger.debug("display_response: length=%d (queued)", len(text))
 
+    def set_context_summary(self, text: str) -> None:
+        """画面分析結果をキューに積む（上パネル表示用）。"""
+        self._pending_queue.put({"type": "context", "value": text})
+        logger.debug("set_context_summary: length=%d (queued)", len(text))
+
     def get_last_response(self) -> str:
         return self._last_response
 
