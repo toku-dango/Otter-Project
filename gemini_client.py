@@ -14,16 +14,35 @@ MAX_RETRIES = 3
 BACKOFF_BASE = 1.0
 RETRYABLE_ERRORS = ("ServiceUnavailable", "DeadlineExceeded", "ResourceExhausted")
 
-PRELOAD_PROMPT = (
-    "この画面の内容を把握してください。"
-    "画面に何が表示されているか、ユーザーが何をしているかを理解し、簡潔に要約してください。"
-)
+PRELOAD_PROMPT = """\
+この画面の内容を把握してください。
+以下の形式で必ず回答してください（他の文は不要）：
+
+---DETAIL---
+（詳細な分析：画面に何が表示されているか、ユーザーが何をしようとしているか、使用中のアプリやファイル名なども含めて詳しく）
+
+---DISPLAY---
+（ユーザーへの表示用：2〜3文のフレンドリーなメッセージ。「今は〜しているかな。困ったら聞いてね。」のような親しみやすい口調で。）
+"""
+
+
+def _parse_preload_response(text: str) -> tuple[str, str]:
+    """DETAIL / DISPLAY セクションを抽出して返す。"""
+    detail = text
+    display = text
+    if "---DETAIL---" in text and "---DISPLAY---" in text:
+        parts = text.split("---DISPLAY---", 1)
+        display = parts[1].strip()
+        detail_part = parts[0].split("---DETAIL---", 1)
+        detail = detail_part[1].strip() if len(detail_part) > 1 else text
+    return detail, display
 
 
 @dataclass(frozen=True)
 class PreloadResult:
     success: bool
-    context_summary: str | None
+    context_summary: str | None    # 詳細分析（LLMコンテキスト用）
+    display_message: str | None    # 短いフレンドリーメッセージ（GUI表示用）
     chat_session: Any | None
     error_message: str | None
 
@@ -47,18 +66,20 @@ class GeminiClient:
                 model=self._model,
                 contents=[PRELOAD_PROMPT, image],
             )
-            summary = response.text
+            detail, display = _parse_preload_response(response.text)
             self._history = [
-                {"role": "user", "parts": [{"text": f"[画面コンテキスト] {summary}"}]},
+                {"role": "user", "parts": [{"text": f"[画面コンテキスト] {detail}"}]},
                 {"role": "model", "parts": [{"text": "画面の内容を確認しました。何かご質問はありますか？"}]},
             ]
             logger.debug("preload_context succeeded")
-            return PreloadResult(success=True, context_summary=summary,
+            return PreloadResult(success=True, context_summary=detail,
+                                 display_message=display,
                                  chat_session=self._history, error_message=None)
         except Exception as e:
             logger.error("preload_context failed: %s - %s", type(e).__name__, e)
             self._history = []
             return PreloadResult(success=False, context_summary=None,
+                                 display_message=None,
                                  chat_session=None, error_message=str(e))
 
     def generate_response(self, user_input: str, chat_session: Any) -> str:

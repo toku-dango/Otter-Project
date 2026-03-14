@@ -98,16 +98,19 @@ class AssistantOrchestrator:
                 success=preload_result.success,
                 chat=preload_result.chat_session,
                 summary=preload_result.context_summary,
+                display_message=preload_result.display_message,
             ),
         )
 
-    def _on_preload_done(self, success: bool, chat: Any, summary: str | None) -> None:
+    def _on_preload_done(self, success: bool, chat: Any, summary: str | None,
+                         display_message: str | None = None) -> None:
         """UIスレッド: 事前把握完了後の状態更新（PAT-02）。"""
         if success and chat is not None:
             self._session.chat_session = chat
             if summary:
                 self._session_mgr.update_preload_summary(self._session.session_id, summary)
-                self._widget.set_context_summary(summary)
+            if display_message:
+                self._widget.set_context_summary(display_message)
             self._widget.set_state("IDLE")
             self._widget.set_status_message("画面を確認しました ✓")
         else:
