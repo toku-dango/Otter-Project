@@ -157,7 +157,9 @@ class PyWebViewWidget:
 
     def display_response(self, text: str) -> None:
         self._last_response = text
+        logger.debug("display_response: length=%d", len(text))
         self._js_eval(f"window._otterDisplayResponse && window._otterDisplayResponse({json.dumps(text)})")
+        logger.debug("display_response: js_eval done")
 
     def get_last_response(self) -> str:
         return self._last_response
