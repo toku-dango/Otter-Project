@@ -44,11 +44,6 @@
     .header-status.thinking { color: var(--accent);
       animation: blink 1.2s ease-in-out infinite; }
     @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
-    .close-btn { background: transparent; border: none; color: var(--text-sub);
-      font-size: 14px; width: 28px; height: 28px; border-radius: 6px; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: background .15s, color .15s; }
-    .close-btn:hover { background: #3a1a1a; color: #ff6b6b; }
 
     /* ── Main area ── */
     .main-area { flex: 1; overflow: hidden; display: flex;
@@ -183,7 +178,6 @@
         <div class="header-title">Otter</div>
         <div class="header-status" id="status-text">Ready</div>
       </div>
-      <button class="close-btn" id="close-btn" title="閉じる" data-testid="close-button">✕</button>
     </div>
 
     <div class="main-area">
@@ -313,7 +307,6 @@
     const textarea      = document.getElementById('input-textarea')
     const pasteBtn      = document.getElementById('paste-btn')
     const sendBtn       = document.getElementById('send-btn')
-    const closeBtn      = document.getElementById('close-btn')
 
     let thinkingBubble = null   // typing indicator element in chat
     let lastAiText = ''
@@ -440,10 +433,6 @@
       if (window.pywebview) window.pywebview.api.copy_response()
       copyBtn.textContent = 'Copied!'
       setTimeout(() => { copyBtn.textContent = 'Copy response' }, 1200)
-    })
-
-    closeBtn.addEventListener('click', () => {
-      if (window.pywebview) window.pywebview.api.close_session()
     })
 
     function submitText() {
