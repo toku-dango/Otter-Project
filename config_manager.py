@@ -16,7 +16,7 @@ class WidgetConfig:
     x: int = -1       # -1 はデフォルト位置（画面右下）を意味する
     y: int = -1
     width: int = 420
-    height: int = 1000
+    height: int = 740
 
     def is_default(self) -> bool:
         return self.x == -1 or self.y == -1

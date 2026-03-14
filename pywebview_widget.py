@@ -98,7 +98,7 @@ class PyWebViewWidget:
         """PyWebView イベントループを開始（ここでブロック）。"""
         wc = self._config.get_widget_config()
         w = wc.width  or 420
-        h = wc.height or 1000
+        h = wc.height or 740
 
         import tkinter as tk
         root = tk.Tk(); root.withdraw()
