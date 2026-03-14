@@ -4,10 +4,10 @@
   import ResponseArea from './lib/ResponseArea.svelte'
   import InputArea from './lib/InputArea.svelte'
 
-  let otterState = 'idle'   // 'idle' | 'thinking' | 'done'
-  let statusMsg  = 'Ready'
-  let responseText = ''
-  let showCopy = false
+  let otterState = $state('idle')   // 'idle' | 'thinking' | 'done'
+  let statusMsg  = $state('Ready')
+  let responseText = $state('')
+  let showCopy = $state(false)
 
   // ── Python → JS グローバル関数 ─────────────────────────────────────────
   onMount(() => {
@@ -51,7 +51,7 @@
   }
 
   // ── ドラッグ（フレームレスウィンドウ用）────────────────────────────────
-  let dragStart = null
+  let dragStart = $state(null)
   function onHeaderMousedown(e) {
     if (e.button !== 0) return
     dragStart = { mx: e.screenX, my: e.screenY }
@@ -63,7 +63,7 @@
   }
   function onMouseup() { dragStart = null }
 
-  $: inputDisabled = otterState === 'thinking'
+  let inputDisabled = $derived(otterState === 'thinking')
 </script>
 
 <svelte:window on:mousemove={onMousemove} on:mouseup={onMouseup} />
