@@ -129,7 +129,7 @@ class PyWebViewWidget:
 
         threading.Thread(target=_after_start, daemon=True).start()
 
-        webview.start(debug=False)
+        webview.start(debug=True)
 
     def _on_js_ready(self) -> None:
         self._visible = True
