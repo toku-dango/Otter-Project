@@ -74,6 +74,7 @@ class AssistantOrchestrator:
         if not self._widget.is_visible():
             self._widget.show()
 
+        self._widget.show_context_loading()
         self._widget.set_state("THINKING")
         self._widget.set_status_message("画面を確認中...")
 
@@ -131,6 +132,7 @@ class AssistantOrchestrator:
 
         self._is_processing = True
         self._widget.display_user_message(text)
+        self._widget.show_ai_thinking()
         self._widget.set_state("THINKING")
         self._widget.set_status_message("考え中...")
 
@@ -166,6 +168,7 @@ class AssistantOrchestrator:
         self._is_processing = False
         if success and response:
             self._widget.set_state("DONE")
+            self._widget.set_status_message("Ready")
             self._widget.display_response(response)
         else:
             self._widget.set_state("IDLE")

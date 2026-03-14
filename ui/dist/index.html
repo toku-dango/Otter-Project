@@ -17,7 +17,6 @@
       --accent:      #6c63ff;
       --accent-hov:  #5a52e0;
       --bubble-ai:   #1e1e2e;
-      --bubble-user: #2d2b55;
       --context-bg:  #0d1117;
       --context-bdr: #1e3a5f;
       --context-lbl: #4a8fc4;
@@ -56,7 +55,7 @@
       flex-direction: column; min-height: 0; }
 
     /* ── Context panel (top) ── */
-    .context-panel { flex: 0 0 30%; min-height: 0; display: flex;
+    .context-panel { flex: 0 0 28%; min-height: 0; display: flex;
       flex-direction: column; background: var(--context-bg);
       border-bottom: 1px solid var(--context-bdr); }
     .context-label { display: flex; align-items: center; gap: 6px;
@@ -68,6 +67,7 @@
       border-radius: 50%; background: var(--context-lbl);
       animation: pulse 2s ease-in-out infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
     .context-empty { flex: 1; display: flex; align-items: center;
       justify-content: center; color: var(--text-sub); font-size: 12px;
       padding: 8px; text-align: center; }
@@ -75,6 +75,17 @@
       font-size: 12px; line-height: 1.65; color: #a8c4e0;
       white-space: pre-wrap; word-break: break-word; display: none; }
     .context-text.visible { display: block; }
+
+    /* context loading animation */
+    .context-loading { flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 10px;
+      color: var(--context-lbl); font-size: 12px; display: none; }
+    .context-loading.visible { display: flex; }
+    .scan-bar-wrap { width: 80%; height: 3px; background: rgba(74,143,196,.2);
+      border-radius: 2px; overflow: hidden; }
+    .scan-bar { height: 100%; width: 40%; background: var(--context-lbl);
+      border-radius: 2px; animation: scan 1.4s ease-in-out infinite; }
+    @keyframes scan { 0%{transform:translateX(-100%)} 100%{transform:translateX(300%)} }
 
     /* ── Chat panel (bottom) ── */
     .chat-panel { flex: 1; min-height: 0; display: flex;
@@ -85,23 +96,31 @@
       border-bottom: 1px solid var(--border); flex-shrink: 0; }
     .chat-messages { flex: 1; overflow-y: auto; padding: 10px 12px;
       display: flex; flex-direction: column; gap: 10px; }
-    .chat-empty { flex: 1; display: flex; align-items: center;
-      justify-content: center; color: var(--text-sub); }
+    .chat-empty { display: flex; align-items: center;
+      justify-content: center; color: var(--text-sub); padding: 20px 0; }
 
     /* ── Message bubbles ── */
     .msg { display: flex; flex-direction: column; max-width: 85%; }
     .msg.user { align-self: flex-end; align-items: flex-end; }
     .msg.ai   { align-self: flex-start; align-items: flex-start; }
-
     .bubble { padding: 9px 13px; border-radius: 14px; line-height: 1.6;
       font-size: 13px; white-space: pre-wrap; word-break: break-word; }
     .msg.user .bubble { background: var(--accent); color: #fff;
       border-bottom-right-radius: 4px; }
     .msg.ai .bubble { background: var(--bubble-ai); color: var(--text);
       border: 1px solid var(--border); border-bottom-left-radius: 4px; }
-
     .msg-time { font-size: 10px; color: var(--text-sub); margin-top: 3px;
       padding: 0 4px; }
+
+    /* typing indicator (3 dots) */
+    .typing-dots { display: flex; align-items: center; gap: 5px;
+      padding: 11px 16px; }
+    .typing-dots span { width: 7px; height: 7px; border-radius: 50%;
+      background: var(--text-sub); animation: dot 1.2s ease-in-out infinite; }
+    .typing-dots span:nth-child(2) { animation-delay: .2s; }
+    .typing-dots span:nth-child(3) { animation-delay: .4s; }
+    @keyframes dot { 0%,80%,100%{opacity:.3;transform:scale(.8)}
+                     40%{opacity:1;transform:scale(1)} }
 
     /* ── Input area ── */
     .input-area { background: var(--surface); border-top: 1px solid var(--border);
@@ -148,14 +167,18 @@
 
     <div class="main-area">
 
-      <!-- Context panel (top): screen analysis -->
+      <!-- Context panel -->
       <div class="context-panel">
         <div class="context-label">画面の状況</div>
         <div class="context-empty" id="context-empty">ショートカットキーを押すと画面を分析します</div>
+        <div class="context-loading" id="context-loading">
+          <div class="scan-bar-wrap"><div class="scan-bar"></div></div>
+          <span>画面を確認中...</span>
+        </div>
         <div class="context-text" id="context-text"></div>
       </div>
 
-      <!-- Chat panel (bottom): conversation -->
+      <!-- Chat panel -->
       <div class="chat-panel">
         <div class="chat-label">会話</div>
         <div class="chat-messages" id="chat-messages">
@@ -187,19 +210,21 @@
       speaking: 'otter/speaking.gif', done: 'otter/done.gif',
     }
 
-    const img          = document.getElementById('otter-img')
-    const statusEl     = document.getElementById('status-text')
-    const contextEmpty = document.getElementById('context-empty')
-    const contextText  = document.getElementById('context-text')
-    const chatMessages = document.getElementById('chat-messages')
-    const chatEmpty    = document.getElementById('chat-empty')
-    const copyRow      = document.getElementById('copy-row')
-    const copyBtn      = document.getElementById('copy-btn')
-    const textarea     = document.getElementById('input-textarea')
-    const pasteBtn     = document.getElementById('paste-btn')
-    const sendBtn      = document.getElementById('send-btn')
-    const closeBtn     = document.getElementById('close-btn')
+    const img           = document.getElementById('otter-img')
+    const statusEl      = document.getElementById('status-text')
+    const contextEmpty  = document.getElementById('context-empty')
+    const contextLoading = document.getElementById('context-loading')
+    const contextText   = document.getElementById('context-text')
+    const chatMessages  = document.getElementById('chat-messages')
+    const chatEmpty     = document.getElementById('chat-empty')
+    const copyRow       = document.getElementById('copy-row')
+    const copyBtn       = document.getElementById('copy-btn')
+    const textarea      = document.getElementById('input-textarea')
+    const pasteBtn      = document.getElementById('paste-btn')
+    const sendBtn       = document.getElementById('send-btn')
+    const closeBtn      = document.getElementById('close-btn')
 
+    let thinkingBubble = null   // typing indicator element in chat
     let lastAiText = ''
 
     // ── State ──────────────────────────────────────────────────────────────
@@ -216,12 +241,21 @@
 
     function setStatus(msg) { statusEl.textContent = msg }
 
+    // ── Context panel ──────────────────────────────────────────────────────
+    function showContextLoading() {
+      contextEmpty.style.display = 'none'
+      contextText.classList.remove('visible')
+      contextLoading.classList.add('visible')
+    }
+
     function displayContext(text) {
+      contextLoading.classList.remove('visible')
       contextEmpty.style.display = 'none'
       contextText.textContent = text
       contextText.classList.add('visible')
     }
 
+    // ── Chat panel ─────────────────────────────────────────────────────────
     function now() {
       return new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
     }
@@ -240,20 +274,39 @@
       msg.appendChild(time)
       chatMessages.appendChild(msg)
       chatMessages.scrollTop = chatMessages.scrollHeight
-      return bubble
+      return msg
     }
 
-    // ── Polling: Python → JS ───────────────────────────────────────────────
+    function showAiThinking() {
+      chatEmpty.style.display = 'none'
+      if (thinkingBubble) thinkingBubble.remove()
+      const msg = document.createElement('div')
+      msg.className = 'msg ai'
+      const bubble = document.createElement('div')
+      bubble.className = 'bubble'
+      bubble.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>'
+      msg.appendChild(bubble)
+      chatMessages.appendChild(msg)
+      chatMessages.scrollTop = chatMessages.scrollHeight
+      thinkingBubble = msg
+    }
+
+    function displayAiMessage(text) {
+      if (thinkingBubble) { thinkingBubble.remove(); thinkingBubble = null }
+      lastAiText = text
+      addMessage('ai', text)
+    }
+
+    // ── Polling ────────────────────────────────────────────────────────────
     function applyUpdate(update) {
       if (!update) return
-      if (update.type === 'state')       setState(update.value)
-      if (update.type === 'status')      setStatus(update.value)
-      if (update.type === 'context')     displayContext(update.value)
-      if (update.type === 'user_message') addMessage('user', update.value)
-      if (update.type === 'ai_message') {
-        lastAiText = update.value
-        addMessage('ai', update.value)
-      }
+      if (update.type === 'state')          setState(update.value)
+      if (update.type === 'status')         setStatus(update.value)
+      if (update.type === 'context_loading') showContextLoading()
+      if (update.type === 'context')        displayContext(update.value)
+      if (update.type === 'user_message')   addMessage('user', update.value)
+      if (update.type === 'ai_thinking')    showAiThinking()
+      if (update.type === 'ai_message')     displayAiMessage(update.value)
     }
 
     function startPolling() {

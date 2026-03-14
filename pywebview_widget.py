@@ -97,8 +97,8 @@ class PyWebViewWidget:
     def start(self, orchestrator_start_fn: Callable) -> None:
         """PyWebView イベントループを開始（ここでブロック）。"""
         wc = self._config.get_widget_config()
-        w = wc.width  or 400
-        h = wc.height or 560
+        w = wc.width  or 420
+        h = wc.height or 740
 
         import tkinter as tk
         root = tk.Tk(); root.withdraw()
@@ -160,6 +160,14 @@ class PyWebViewWidget:
     def set_status_message(self, message: str) -> None:
         """ステータスメッセージ更新をキューに積む。"""
         self._pending_queue.put({"type": "status", "value": message})
+
+    def show_context_loading(self) -> None:
+        """画面分析中アニメーションをキューに積む。"""
+        self._pending_queue.put({"type": "context_loading"})
+
+    def show_ai_thinking(self) -> None:
+        """AI思考中バブルをキューに積む。"""
+        self._pending_queue.put({"type": "ai_thinking"})
 
     def display_user_message(self, text: str) -> None:
         """ユーザーメッセージをキューに積む（チャット表示用）。"""
