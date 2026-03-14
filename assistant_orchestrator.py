@@ -130,6 +130,7 @@ class AssistantOrchestrator:
             return
 
         self._is_processing = True
+        self._widget.display_user_message(text)
         self._widget.set_state("THINKING")
         self._widget.set_status_message("考え中...")
 

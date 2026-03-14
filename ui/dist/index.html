@@ -8,268 +8,127 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:         #0e0e12;
-      --surface:    #16161c;
-      --surface2:   #1e1e26;
-      --border:     #2a2a36;
-      --text:       #e8e8f0;
-      --text-sub:   #7070a0;
-      --accent:     #6c63ff;
-      --accent-hov: #5a52e0;
-      --bubble:     #13131a;
-      --context-bg: #0d1117;
-      --context-border: #1e3a5f;
-      --context-label:  #4a8fc4;
+      --bg:          #0e0e12;
+      --surface:     #16161c;
+      --surface2:    #1e1e26;
+      --border:      #2a2a36;
+      --text:        #e8e8f0;
+      --text-sub:    #7070a0;
+      --accent:      #6c63ff;
+      --accent-hov:  #5a52e0;
+      --bubble-ai:   #1e1e2e;
+      --bubble-user: #2d2b55;
+      --context-bg:  #0d1117;
+      --context-bdr: #1e3a5f;
+      --context-lbl: #4a8fc4;
     }
 
-    html, body {
-      height: 100%;
-      background: var(--bg);
+    html, body { height: 100%; background: var(--bg);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      color: var(--text);
-      font-size: 14px;
-    }
+      color: var(--text); font-size: 14px; }
 
-    .app {
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      overflow: hidden;
-      box-shadow: 0 24px 64px rgba(0,0,0,.6), 0 4px 16px rgba(0,0,0,.4);
-    }
+    .app { display: flex; flex-direction: column; height: 100vh;
+      border: 1px solid var(--border); border-radius: 16px; overflow: hidden;
+      box-shadow: 0 24px 64px rgba(0,0,0,.6), 0 4px 16px rgba(0,0,0,.4); }
 
     /* ── Header ── */
-    .header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 12px;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
-      cursor: grab;
-      user-select: none;
-    }
+    .header { display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      flex-shrink: 0; cursor: grab; user-select: none; }
     .header:active { cursor: grabbing; }
-
-    .otter-img {
-      width: 52px;
-      height: 52px;
-      object-fit: contain;
-      border-radius: 8px;
-      flex-shrink: 0;
-    }
-
+    .otter-img { width: 52px; height: 52px; object-fit: contain;
+      border-radius: 8px; flex-shrink: 0; }
     .header-info { flex: 1; }
     .header-title { font-size: 15px; font-weight: 700; letter-spacing: .3px; }
-    .header-status {
-      font-size: 11px;
-      color: var(--text-sub);
-      margin-top: 2px;
-      transition: color .2s;
-    }
-    .header-status.thinking {
-      color: var(--accent);
-      animation: blink 1.2s ease-in-out infinite;
-    }
+    .header-status { font-size: 11px; color: var(--text-sub); margin-top: 2px;
+      transition: color .2s; }
+    .header-status.thinking { color: var(--accent);
+      animation: blink 1.2s ease-in-out infinite; }
     @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
-
-    .close-btn {
-      background: transparent;
-      border: none;
-      color: var(--text-sub);
-      font-size: 14px;
-      width: 28px; height: 28px;
-      border-radius: 6px;
-      cursor: pointer;
+    .close-btn { background: transparent; border: none; color: var(--text-sub);
+      font-size: 14px; width: 28px; height: 28px; border-radius: 6px; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
-      transition: background .15s, color .15s;
-    }
+      transition: background .15s, color .15s; }
     .close-btn:hover { background: #3a1a1a; color: #ff6b6b; }
 
-    /* ── Main area (context + response) ── */
-    .main-area {
-      flex: 1;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      min-height: 0;
-    }
+    /* ── Main area ── */
+    .main-area { flex: 1; overflow: hidden; display: flex;
+      flex-direction: column; min-height: 0; }
 
     /* ── Context panel (top) ── */
-    .context-panel {
-      flex: 0 0 38%;
-      min-height: 0;
-      display: flex;
-      flex-direction: column;
-      background: var(--context-bg);
-      border-bottom: 1px solid var(--context-border);
-    }
-
-    .context-label {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 5px 12px;
-      font-size: 10px;
-      font-weight: 600;
-      color: var(--context-label);
-      letter-spacing: .6px;
-      text-transform: uppercase;
-      border-bottom: 1px solid var(--context-border);
-      flex-shrink: 0;
-      background: rgba(30, 58, 95, 0.2);
-    }
-    .context-label::before {
-      content: '';
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      background: var(--context-label);
-      animation: pulse 2s ease-in-out infinite;
-    }
+    .context-panel { flex: 0 0 30%; min-height: 0; display: flex;
+      flex-direction: column; background: var(--context-bg);
+      border-bottom: 1px solid var(--context-bdr); }
+    .context-label { display: flex; align-items: center; gap: 6px;
+      padding: 5px 12px; font-size: 10px; font-weight: 600;
+      color: var(--context-lbl); letter-spacing: .6px; text-transform: uppercase;
+      border-bottom: 1px solid var(--context-bdr); flex-shrink: 0;
+      background: rgba(30,58,95,.2); }
+    .context-label::before { content: ''; width: 6px; height: 6px;
+      border-radius: 50%; background: var(--context-lbl);
+      animation: pulse 2s ease-in-out infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
-
-    .context-empty {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-sub);
-      font-size: 12px;
-      padding: 8px;
-      text-align: center;
-    }
-
-    .context-text {
-      flex: 1;
-      overflow-y: auto;
-      padding: 10px 12px;
-      font-size: 12px;
-      line-height: 1.65;
-      color: #a8c4e0;
-      white-space: pre-wrap;
-      word-break: break-word;
-      display: none;
-    }
+    .context-empty { flex: 1; display: flex; align-items: center;
+      justify-content: center; color: var(--text-sub); font-size: 12px;
+      padding: 8px; text-align: center; }
+    .context-text { flex: 1; overflow-y: auto; padding: 10px 12px;
+      font-size: 12px; line-height: 1.65; color: #a8c4e0;
+      white-space: pre-wrap; word-break: break-word; display: none; }
     .context-text.visible { display: block; }
 
-    /* ── Chat response panel (bottom) ── */
-    .response-panel {
-      flex: 1;
-      min-height: 0;
-      display: flex;
-      flex-direction: column;
-      background: var(--bubble);
-    }
+    /* ── Chat panel (bottom) ── */
+    .chat-panel { flex: 1; min-height: 0; display: flex;
+      flex-direction: column; background: var(--bg); }
+    .chat-label { display: flex; align-items: center; gap: 6px; padding: 5px 12px;
+      font-size: 10px; font-weight: 600; color: var(--text-sub);
+      letter-spacing: .6px; text-transform: uppercase;
+      border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 10px 12px;
+      display: flex; flex-direction: column; gap: 10px; }
+    .chat-empty { flex: 1; display: flex; align-items: center;
+      justify-content: center; color: var(--text-sub); }
 
-    .response-label {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 5px 12px;
-      font-size: 10px;
-      font-weight: 600;
-      color: var(--text-sub);
-      letter-spacing: .6px;
-      text-transform: uppercase;
-      border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
-    }
+    /* ── Message bubbles ── */
+    .msg { display: flex; flex-direction: column; max-width: 85%; }
+    .msg.user { align-self: flex-end; align-items: flex-end; }
+    .msg.ai   { align-self: flex-start; align-items: flex-start; }
 
-    .response-empty {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-sub);
-    }
+    .bubble { padding: 9px 13px; border-radius: 14px; line-height: 1.6;
+      font-size: 13px; white-space: pre-wrap; word-break: break-word; }
+    .msg.user .bubble { background: var(--accent); color: #fff;
+      border-bottom-right-radius: 4px; }
+    .msg.ai .bubble { background: var(--bubble-ai); color: var(--text);
+      border: 1px solid var(--border); border-bottom-left-radius: 4px; }
 
-    .response-content {
-      flex: 1;
-      overflow-y: auto;
-      padding: 12px 14px;
-      line-height: 1.7;
-      white-space: pre-wrap;
-      word-break: break-word;
-      display: none;
-    }
-    .response-content.visible { display: block; }
+    .msg-time { font-size: 10px; color: var(--text-sub); margin-top: 3px;
+      padding: 0 4px; }
 
     /* ── Input area ── */
-    .input-area {
-      background: var(--surface);
-      border-top: 1px solid var(--border);
-      padding: 10px 12px 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      flex-shrink: 0;
-    }
-
+    .input-area { background: var(--surface); border-top: 1px solid var(--border);
+      padding: 10px 12px 12px; display: flex; flex-direction: column;
+      gap: 8px; flex-shrink: 0; }
     .copy-row { display: none; }
     .copy-row.visible { display: flex; }
-    .copy-btn {
-      background: transparent;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: var(--text-sub);
-      font-size: 11px;
-      padding: 3px 10px;
-      cursor: pointer;
-      transition: background .15s;
-    }
+    .copy-btn { background: transparent; border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text-sub); font-size: 11px;
+      padding: 3px 10px; cursor: pointer; transition: background .15s; }
     .copy-btn:hover { background: var(--border); }
-
-    textarea {
-      width: 100%;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      color: var(--text);
-      font-size: 14px;
-      font-family: inherit;
-      padding: 9px 12px;
-      resize: none;
-      outline: none;
-      line-height: 1.5;
-      transition: border-color .15s;
-    }
+    textarea { width: 100%; background: var(--surface2);
+      border: 1px solid var(--border); border-radius: 10px; color: var(--text);
+      font-size: 14px; font-family: inherit; padding: 9px 12px; resize: none;
+      outline: none; line-height: 1.5; transition: border-color .15s; }
     textarea:focus { border-color: var(--accent); }
     textarea::placeholder { color: var(--text-sub); }
     textarea:disabled { opacity: .5; cursor: not-allowed; }
-
-    .btn-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .paste-btn {
-      background: transparent;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      color: var(--text-sub);
-      font-size: 12px;
-      padding: 5px 14px;
-      cursor: pointer;
-      transition: background .15s;
-    }
+    .btn-row { display: flex; align-items: center; justify-content: space-between; }
+    .paste-btn { background: transparent; border: 1px solid var(--border);
+      border-radius: 14px; color: var(--text-sub); font-size: 12px;
+      padding: 5px 14px; cursor: pointer; transition: background .15s; }
     .paste-btn:hover:not(:disabled) { background: var(--border); }
     .paste-btn:disabled { opacity: .4; cursor: not-allowed; }
-
-    .send-btn {
-      background: var(--accent);
-      border: none;
-      border-radius: 18px;
-      color: #fff;
-      font-size: 13px;
-      font-weight: 600;
-      padding: 7px 20px;
-      cursor: pointer;
-      transition: background .15s, opacity .15s;
-    }
+    .send-btn { background: var(--accent); border: none; border-radius: 18px;
+      color: #fff; font-size: 13px; font-weight: 600; padding: 7px 20px;
+      cursor: pointer; transition: background .15s, opacity .15s; }
     .send-btn:hover:not(:disabled) { background: var(--accent-hov); }
     .send-btn:disabled { opacity: .4; cursor: not-allowed; }
   </style>
@@ -287,21 +146,21 @@
       <button class="close-btn" id="close-btn" title="閉じる" data-testid="close-button">✕</button>
     </div>
 
-    <!-- Main area -->
     <div class="main-area">
 
-      <!-- Context panel (top): AI screen analysis -->
+      <!-- Context panel (top): screen analysis -->
       <div class="context-panel">
         <div class="context-label">画面の状況</div>
         <div class="context-empty" id="context-empty">ショートカットキーを押すと画面を分析します</div>
         <div class="context-text" id="context-text"></div>
       </div>
 
-      <!-- Response panel (bottom): AI reply to user -->
-      <div class="response-panel">
-        <div class="response-label">返答</div>
-        <div class="response-empty" id="response-empty">どうした？気軽に聞いて 🦦</div>
-        <div class="response-content" id="response-content"></div>
+      <!-- Chat panel (bottom): conversation -->
+      <div class="chat-panel">
+        <div class="chat-label">会話</div>
+        <div class="chat-messages" id="chat-messages">
+          <div class="chat-empty" id="chat-empty">どうした？気軽に聞いて 🦦</div>
+        </div>
       </div>
 
     </div>
@@ -311,12 +170,9 @@
       <div class="copy-row" id="copy-row">
         <button class="copy-btn" id="copy-btn">Copy response</button>
       </div>
-      <textarea
-        id="input-textarea"
-        rows="3"
+      <textarea id="input-textarea" rows="3"
         placeholder="メッセージを入力　Enter で送信"
-        data-testid="input-textarea"
-      ></textarea>
+        data-testid="input-textarea"></textarea>
       <div class="btn-row">
         <button class="paste-btn" id="paste-btn" data-testid="paste-button">Paste</button>
         <button class="send-btn" id="send-btn" disabled data-testid="send-button">Send ↵</button>
@@ -327,24 +183,24 @@
 
   <script>
     const otterGifs = {
-      idle:     'otter/idle.gif',
-      thinking: 'otter/thinking.gif',
-      speaking: 'otter/speaking.gif',
-      done:     'otter/done.gif',
+      idle: 'otter/idle.gif', thinking: 'otter/thinking.gif',
+      speaking: 'otter/speaking.gif', done: 'otter/done.gif',
     }
 
     const img          = document.getElementById('otter-img')
     const statusEl     = document.getElementById('status-text')
     const contextEmpty = document.getElementById('context-empty')
     const contextText  = document.getElementById('context-text')
-    const responseEmpty  = document.getElementById('response-empty')
-    const responseEl     = document.getElementById('response-content')
+    const chatMessages = document.getElementById('chat-messages')
+    const chatEmpty    = document.getElementById('chat-empty')
     const copyRow      = document.getElementById('copy-row')
     const copyBtn      = document.getElementById('copy-btn')
     const textarea     = document.getElementById('input-textarea')
     const pasteBtn     = document.getElementById('paste-btn')
     const sendBtn      = document.getElementById('send-btn')
     const closeBtn     = document.getElementById('close-btn')
+
+    let lastAiText = ''
 
     // ── State ──────────────────────────────────────────────────────────────
     function setState(state) {
@@ -355,40 +211,49 @@
       pasteBtn.disabled = (s === 'thinking')
       updateSendBtn()
       copyRow.classList.toggle('visible', state === 'DONE')
-      if (state === 'DONE') {
-        setTimeout(() => setState('idle'), 2000)
-      }
+      if (state === 'DONE') setTimeout(() => setState('idle'), 2000)
     }
 
-    function setStatus(msg) {
-      statusEl.textContent = msg
-    }
+    function setStatus(msg) { statusEl.textContent = msg }
 
     function displayContext(text) {
       contextEmpty.style.display = 'none'
       contextText.textContent = text
       contextText.classList.add('visible')
-      contextText.scrollTop = 0
     }
 
-    function displayResponse(text) {
-      responseEmpty.style.display = 'none'
-      responseEl.textContent = text
-      responseEl.classList.add('visible')
-      responseEl.scrollTop = 0
+    function now() {
+      return new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
     }
 
-    function updateSendBtn() {
-      sendBtn.disabled = textarea.disabled || textarea.value.trim() === ''
+    function addMessage(role, text) {
+      chatEmpty.style.display = 'none'
+      const msg = document.createElement('div')
+      msg.className = `msg ${role}`
+      const bubble = document.createElement('div')
+      bubble.className = 'bubble'
+      bubble.textContent = text
+      const time = document.createElement('div')
+      time.className = 'msg-time'
+      time.textContent = now()
+      msg.appendChild(bubble)
+      msg.appendChild(time)
+      chatMessages.appendChild(msg)
+      chatMessages.scrollTop = chatMessages.scrollHeight
+      return bubble
     }
 
     // ── Polling: Python → JS ───────────────────────────────────────────────
     function applyUpdate(update) {
       if (!update) return
-      if (update.type === 'state')    setState(update.value)
-      if (update.type === 'status')   setStatus(update.value)
-      if (update.type === 'context')  displayContext(update.value)
-      if (update.type === 'response') displayResponse(update.value)
+      if (update.type === 'state')       setState(update.value)
+      if (update.type === 'status')      setStatus(update.value)
+      if (update.type === 'context')     displayContext(update.value)
+      if (update.type === 'user_message') addMessage('user', update.value)
+      if (update.type === 'ai_message') {
+        lastAiText = update.value
+        addMessage('ai', update.value)
+      }
     }
 
     function startPolling() {
@@ -402,22 +267,15 @@
 
     // ── Events ────────────────────────────────────────────────────────────
     textarea.addEventListener('input', updateSendBtn)
-
     textarea.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault()
-        submitText()
-      }
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitText() }
     })
-
     sendBtn.addEventListener('click', submitText)
 
     pasteBtn.addEventListener('click', () => {
       if (navigator.clipboard) {
         navigator.clipboard.readText().then(t => {
-          textarea.value += t
-          textarea.focus()
-          updateSendBtn()
+          textarea.value += t; textarea.focus(); updateSendBtn()
         })
       }
     })
@@ -432,15 +290,16 @@
       if (window.pywebview) window.pywebview.api.close_session()
     })
 
-    // ── Submit ────────────────────────────────────────────────────────────
     function submitText() {
       const text = textarea.value.trim()
       if (!text || textarea.disabled) return
       textarea.value = ''
       updateSendBtn()
-      if (window.pywebview) {
-        window.pywebview.api.submit_text(text)
-      }
+      if (window.pywebview) window.pywebview.api.submit_text(text)
+    }
+
+    function updateSendBtn() {
+      sendBtn.disabled = textarea.disabled || textarea.value.trim() === ''
     }
 
     // ── Drag ─────────────────────────────────────────────────────────────

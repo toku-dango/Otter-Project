@@ -161,10 +161,14 @@ class PyWebViewWidget:
         """ステータスメッセージ更新をキューに積む。"""
         self._pending_queue.put({"type": "status", "value": message})
 
+    def display_user_message(self, text: str) -> None:
+        """ユーザーメッセージをキューに積む（チャット表示用）。"""
+        self._pending_queue.put({"type": "user_message", "value": text})
+
     def display_response(self, text: str) -> None:
-        """応答テキストをキューに積む。"""
+        """AI応答テキストをキューに積む。"""
         self._last_response = text
-        self._pending_queue.put({"type": "response", "value": text})
+        self._pending_queue.put({"type": "ai_message", "value": text})
         logger.debug("display_response: length=%d (queued)", len(text))
 
     def set_context_summary(self, text: str) -> None:
