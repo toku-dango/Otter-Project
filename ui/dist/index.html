@@ -112,6 +112,27 @@
     .msg-time { font-size: 10px; color: var(--text-sub); margin-top: 3px;
       padding: 0 4px; }
 
+    /* markdown in AI bubble */
+    .bubble.md p { margin: 0 0 6px; }
+    .bubble.md p:last-child { margin-bottom: 0; }
+    .bubble.md h1,.bubble.md h2,.bubble.md h3 { margin: 6px 0 4px;
+      font-weight: 700; line-height: 1.3; }
+    .bubble.md h1 { font-size: 15px; }
+    .bubble.md h2 { font-size: 14px; }
+    .bubble.md h3 { font-size: 13px; }
+    .bubble.md ul,.bubble.md ol { padding-left: 18px; margin: 4px 0; }
+    .bubble.md li { margin: 2px 0; }
+    .bubble.md code { background: rgba(0,0,0,.3); border-radius: 4px;
+      padding: 1px 5px; font-family: monospace; font-size: 12px; }
+    .bubble.md pre { background: rgba(0,0,0,.35); border-radius: 8px;
+      padding: 10px; margin: 6px 0; overflow-x: auto; }
+    .bubble.md pre code { background: none; padding: 0; font-size: 12px;
+      white-space: pre; }
+    .bubble.md strong { font-weight: 700; }
+    .bubble.md em { font-style: italic; opacity: .9; }
+    .bubble.md hr { border: none; border-top: 1px solid rgba(255,255,255,.15);
+      margin: 6px 0; }
+
     /* typing indicator (3 dots) */
     .typing-dots { display: flex; align-items: center; gap: 5px;
       padding: 11px 16px; }
@@ -205,6 +226,76 @@
   </div>
 
   <script>
+    // ── Markdown renderer ─────────────────────────────────────────────────
+    function renderMd(raw) {
+      const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+
+      function inline(s) {
+        return s
+          .replace(/`([^`]+)`/g, '<code>$1</code>')
+          .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+          .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
+          .replace(/~~([^~\n]+)~~/g, '<del>$1</del>')
+      }
+
+      const lines = raw.split('\n')
+      let out = ''
+      let i = 0
+
+      while (i < lines.length) {
+        const line = lines[i]
+
+        // fenced code block
+        if (line.startsWith('```')) {
+          const codeLines = []; i++
+          while (i < lines.length && !lines[i].startsWith('```')) {
+            codeLines.push(lines[i]); i++
+          }
+          out += `<pre><code>${esc(codeLines.join('\n'))}</code></pre>`
+          i++; continue
+        }
+
+        // headings
+        const hm = line.match(/^(#{1,3})\s+(.+)/)
+        if (hm) {
+          const lv = hm[1].length
+          out += `<h${lv}>${inline(esc(hm[2]))}</h${lv}>`
+          i++; continue
+        }
+
+        // horizontal rule
+        if (/^---+$/.test(line.trim())) {
+          out += '<hr>'; i++; continue
+        }
+
+        // list
+        if (/^([*\-]|\d+\.)\s/.test(line)) {
+          const ordered = /^\d+\./.test(line)
+          const tag = ordered ? 'ol' : 'ul'
+          out += `<${tag}>`
+          while (i < lines.length && /^([*\-]|\d+\.)\s/.test(lines[i])) {
+            const m = lines[i].match(/^(?:[*\-]|\d+\.)\s+(.*)/)
+            out += `<li>${inline(esc(m ? m[1] : ''))}</li>`
+            i++
+          }
+          out += `</${tag}>`; continue
+        }
+
+        // blank line
+        if (line.trim() === '') { i++; continue }
+
+        // paragraph
+        const para = []
+        while (i < lines.length && lines[i].trim() !== ''
+               && !/^(#{1,3}|```|[*\-]|\d+\.|---+)/.test(lines[i])) {
+          para.push(lines[i]); i++
+        }
+        if (para.length) out += `<p>${inline(esc(para.join('\n')))}</p>`
+      }
+
+      return out || `<p>${inline(esc(raw))}</p>`
+    }
+
     const otterGifs = {
       idle: 'otter/idle.gif', thinking: 'otter/thinking.gif',
       speaking: 'otter/speaking.gif', done: 'otter/done.gif',
@@ -294,7 +385,19 @@
     function displayAiMessage(text) {
       if (thinkingBubble) { thinkingBubble.remove(); thinkingBubble = null }
       lastAiText = text
-      addMessage('ai', text)
+      chatEmpty.style.display = 'none'
+      const msg = document.createElement('div')
+      msg.className = 'msg ai'
+      const bubble = document.createElement('div')
+      bubble.className = 'bubble md'
+      bubble.innerHTML = renderMd(text)
+      const time = document.createElement('div')
+      time.className = 'msg-time'
+      time.textContent = now()
+      msg.appendChild(bubble)
+      msg.appendChild(time)
+      chatMessages.appendChild(msg)
+      chatMessages.scrollTop = chatMessages.scrollHeight
     }
 
     // ── Polling ────────────────────────────────────────────────────────────
