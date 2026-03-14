@@ -1,14 +1,360 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ui</title>
-    <script type="module" crossorigin src="./assets/index-DiSq6KLt.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-CTob_C-w.css">
-  </head>
-  <body>
-    <div id="app"></div>
-  </body>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Otter</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0e0e12;
+      --surface:    #16161c;
+      --surface2:   #1e1e26;
+      --border:     #2a2a36;
+      --text:       #e8e8f0;
+      --text-sub:   #7070a0;
+      --accent:     #6c63ff;
+      --accent-hov: #5a52e0;
+      --bubble:     #13131a;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 24px 64px rgba(0,0,0,.6), 0 4px 16px rgba(0,0,0,.4);
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      cursor: grab;
+      user-select: none;
+    }
+    .header:active { cursor: grabbing; }
+
+    .otter-img {
+      width: 52px;
+      height: 52px;
+      object-fit: contain;
+      border-radius: 8px;
+      flex-shrink: 0;
+    }
+
+    .header-info { flex: 1; }
+    .header-title { font-size: 15px; font-weight: 700; letter-spacing: .3px; }
+    .header-status {
+      font-size: 11px;
+      color: var(--text-sub);
+      margin-top: 2px;
+      transition: color .2s;
+    }
+    .header-status.thinking {
+      color: var(--accent);
+      animation: blink 1.2s ease-in-out infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    .close-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-sub);
+      font-size: 14px;
+      width: 28px; height: 28px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s, color .15s;
+    }
+    .close-btn:hover { background: #3a1a1a; color: #ff6b6b; }
+
+    /* ── Response area ── */
+    .response-area {
+      flex: 1;
+      overflow: hidden;
+      background: var(--bubble);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .empty-state {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-sub);
+    }
+
+    .response-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 16px;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-break: break-word;
+      display: none;
+    }
+    .response-content.visible { display: block; }
+
+    /* ── Input area ── */
+    .input-area {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 10px 12px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .copy-row { display: none; }
+    .copy-row.visible { display: flex; }
+    .copy-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-sub);
+      font-size: 11px;
+      padding: 3px 10px;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .copy-btn:hover { background: var(--border); }
+
+    textarea {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 14px;
+      font-family: inherit;
+      padding: 9px 12px;
+      resize: none;
+      outline: none;
+      line-height: 1.5;
+      transition: border-color .15s;
+    }
+    textarea:focus { border-color: var(--accent); }
+    textarea::placeholder { color: var(--text-sub); }
+    textarea:disabled { opacity: .5; cursor: not-allowed; }
+
+    .btn-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .paste-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      color: var(--text-sub);
+      font-size: 12px;
+      padding: 5px 14px;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .paste-btn:hover:not(:disabled) { background: var(--border); }
+    .paste-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    .send-btn {
+      background: var(--accent);
+      border: none;
+      border-radius: 18px;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 7px 20px;
+      cursor: pointer;
+      transition: background .15s, opacity .15s;
+    }
+    .send-btn:hover:not(:disabled) { background: var(--accent-hov); }
+    .send-btn:disabled { opacity: .4; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <div class="app">
+
+    <!-- Header -->
+    <div class="header" id="header">
+      <img id="otter-img" class="otter-img" src="otter/idle.gif" alt="Otter">
+      <div class="header-info">
+        <div class="header-title">Otter</div>
+        <div class="header-status" id="status-text">Ready</div>
+      </div>
+      <button class="close-btn" id="close-btn" title="閉じる" data-testid="close-button">✕</button>
+    </div>
+
+    <!-- Response -->
+    <div class="response-area">
+      <div class="empty-state" id="empty-state">どうした？気軽に聞いて 🦦</div>
+      <div class="response-content" id="response-content"></div>
+    </div>
+
+    <!-- Input -->
+    <div class="input-area">
+      <div class="copy-row" id="copy-row">
+        <button class="copy-btn" id="copy-btn">Copy response</button>
+      </div>
+      <textarea
+        id="input-textarea"
+        rows="3"
+        placeholder="メッセージを入力　Enter で送信"
+        data-testid="input-textarea"
+      ></textarea>
+      <div class="btn-row">
+        <button class="paste-btn" id="paste-btn" data-testid="paste-button">Paste</button>
+        <button class="send-btn" id="send-btn" disabled data-testid="send-button">Send ↵</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const otterGifs = {
+      idle:     'otter/idle.gif',
+      thinking: 'otter/thinking.gif',
+      speaking: 'otter/speaking.gif',
+      done:     'otter/done.gif',
+    }
+
+    const img        = document.getElementById('otter-img')
+    const statusEl   = document.getElementById('status-text')
+    const emptyEl    = document.getElementById('empty-state')
+    const responseEl = document.getElementById('response-content')
+    const copyRow    = document.getElementById('copy-row')
+    const copyBtn    = document.getElementById('copy-btn')
+    const textarea   = document.getElementById('input-textarea')
+    const pasteBtn   = document.getElementById('paste-btn')
+    const sendBtn    = document.getElementById('send-btn')
+    const closeBtn   = document.getElementById('close-btn')
+
+    // ── State ──────────────────────────────────────────────────────────────
+    function setState(state) {
+      const s = state.toLowerCase()
+      img.src = otterGifs[s] || otterGifs.idle
+      statusEl.classList.toggle('thinking', s === 'thinking')
+      textarea.disabled = (s === 'thinking')
+      pasteBtn.disabled = (s === 'thinking')
+      updateSendBtn()
+      copyRow.classList.toggle('visible', state === 'DONE')
+      if (state === 'DONE') {
+        setTimeout(() => setState('idle'), 2000)
+      }
+    }
+
+    function setStatus(msg) {
+      statusEl.textContent = msg
+    }
+
+    function displayResponse(text) {
+      emptyEl.style.display = 'none'
+      responseEl.textContent = text
+      responseEl.classList.add('visible')
+      responseEl.scrollTop = 0
+    }
+
+    function updateSendBtn() {
+      sendBtn.disabled = textarea.disabled || textarea.value.trim() === ''
+    }
+
+    // ── Polling: Python → JS ───────────────────────────────────────────────
+    function applyUpdate(update) {
+      if (!update) return
+      if (update.type === 'state')    setState(update.value)
+      if (update.type === 'status')   setStatus(update.value)
+      if (update.type === 'response') displayResponse(update.value)
+    }
+
+    function startPolling() {
+      setInterval(async () => {
+        try {
+          const update = await window.pywebview.api.get_pending_update()
+          if (update) applyUpdate(update)
+        } catch (_) {}
+      }, 100)
+    }
+
+    // ── Events ────────────────────────────────────────────────────────────
+    textarea.addEventListener('input', updateSendBtn)
+
+    textarea.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault()
+        submitText()
+      }
+    })
+
+    sendBtn.addEventListener('click', submitText)
+
+    pasteBtn.addEventListener('click', () => {
+      if (navigator.clipboard) {
+        navigator.clipboard.readText().then(t => {
+          textarea.value += t
+          textarea.focus()
+          updateSendBtn()
+        })
+      }
+    })
+
+    copyBtn.addEventListener('click', () => {
+      if (window.pywebview) window.pywebview.api.copy_response()
+      copyBtn.textContent = 'Copied!'
+      setTimeout(() => { copyBtn.textContent = 'Copy response' }, 1200)
+    })
+
+    closeBtn.addEventListener('click', () => {
+      if (window.pywebview) window.pywebview.api.close_session()
+    })
+
+    // ── Submit ────────────────────────────────────────────────────────────
+    function submitText() {
+      const text = textarea.value.trim()
+      if (!text || textarea.disabled) return
+      textarea.value = ''
+      updateSendBtn()
+      if (window.pywebview) {
+        window.pywebview.api.submit_text(text)
+      }
+    }
+
+    // ── Drag (frameless window) ───────────────────────────────────────────
+    let drag = null
+    document.getElementById('header').addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return
+      drag = { mx: e.screenX, my: e.screenY }
+    })
+    document.addEventListener('mousemove', (e) => {
+      if (!drag || !window.pywebview) return
+      window.pywebview.api.move_window(e.screenX - drag.mx, e.screenY - drag.my)
+      drag = { mx: e.screenX, my: e.screenY }
+    })
+    document.addEventListener('mouseup', () => { drag = null })
+
+    // ── Init ──────────────────────────────────────────────────────────────
+    window.addEventListener('pywebviewready', () => {
+      window.pywebview.api.on_ready()
+      startPolling()
+    })
+  </script>
+</body>
 </html>
