@@ -85,7 +85,11 @@ class AssistantOrchestrator:
         # クリップボードのテキストを取得（選択テキストがあれば優先コンテキストに使用）
         clipboard_text = self._clipboard.read()
         if clipboard_text:
-            logger.debug("Clipboard text found: length=%d", len(clipboard_text))
+            preview = clipboard_text[:100].replace('\n', ' ')
+            logger.info("preload context: [クリップボード+画像] 選択テキスト(%d文字) → 「%s%s」",
+                        len(clipboard_text), preview, "…" if len(clipboard_text) > 100 else "")
+        else:
+            logger.info("preload context: [画像のみ]")
 
         capture_result = self._capture.capture()
 
