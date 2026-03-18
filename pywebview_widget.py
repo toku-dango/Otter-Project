@@ -174,10 +174,20 @@ class PyWebViewWidget:
         self._pending_queue.put({"type": "user_message", "value": text})
 
     def display_response(self, text: str) -> None:
-        """AI応答テキストをキューに積む。"""
+        """AI応答テキストをキューに積む（非ストリーミング用）。"""
         self._last_response = text
         self._pending_queue.put({"type": "ai_message", "value": text})
         logger.debug("display_response: length=%d (queued)", len(text))
+
+    def start_response_stream(self) -> None:
+        """ストリーミング開始を通知（表示をリセット）。"""
+        self._last_response = ""
+        self._pending_queue.put({"type": "ai_stream_start"})
+
+    def append_response_chunk(self, chunk: str) -> None:
+        """ストリーミングチャンクをキューに積む。"""
+        self._last_response += chunk
+        self._pending_queue.put({"type": "ai_chunk", "value": chunk})
 
     def set_context_summary(self, text: str) -> None:
         """画面分析結果をキューに積む（上パネル表示用）。"""

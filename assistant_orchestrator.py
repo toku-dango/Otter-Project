@@ -141,35 +141,39 @@ class AssistantOrchestrator:
         ).start()
 
     def _generate_worker(self, text: str) -> None:
-        """バックグラウンドスレッド: Gemini応答生成（PAT-02）。"""
+        """バックグラウンドスレッド: Gemini応答生成（ストリーミング）。"""
         chat = self._session.chat_session if self._session else None
         if chat is None:
             chat = self._gemini.create_session()
             if self._session:
                 self._session.chat_session = chat
 
+        self._widget.start_response_stream()
+
+        def on_chunk(chunk: str) -> None:
+            self._widget.append_response_chunk(chunk)
+
         try:
-            response_text = self._gemini.generate_response(text, chat)
+            response_text = self._gemini.generate_response(text, chat, on_chunk=on_chunk)
             if self._session:
                 self._session_mgr.add_exchange(
                     self._session.session_id, text, response_text
                 )
             self._widget.after(
-                0, lambda: self._on_response_done(success=True, response=response_text)
+                0, lambda: self._on_response_done(success=True)
             )
         except Exception as e:
             logger.error("generate_response error: %s", type(e).__name__)
             self._widget.after(
-                0, lambda: self._on_response_done(success=False, response=None)
+                0, lambda: self._on_response_done(success=False)
             )
 
-    def _on_response_done(self, success: bool, response: str | None) -> None:
-        """UIスレッド: 応答生成完了後の状態更新（PAT-02）。"""
+    def _on_response_done(self, success: bool) -> None:
+        """応答生成完了後の状態更新。"""
         self._is_processing = False
-        if success and response:
+        if success:
             self._widget.set_state("DONE")
             self._widget.set_status_message("Ready")
-            self._widget.display_response(response)
         else:
             self._widget.set_state("IDLE")
             self._widget.set_status_message(ERROR_MESSAGES["response"])

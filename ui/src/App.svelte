@@ -19,8 +19,12 @@
       }
     } else if (update.type === 'status') {
       statusMsg = update.value
-    } else if (update.type === 'response') {
+    } else if (update.type === 'ai_message') {
       responseText = update.value
+    } else if (update.type === 'ai_stream_start') {
+      responseText = ''
+    } else if (update.type === 'ai_chunk') {
+      responseText += update.value
     }
   }
 
@@ -29,12 +33,15 @@
 
     window.pywebview.api.on_ready()
 
+    // キューを全件ドレインしてストリーミングを滑らかにする
     const poll = setInterval(async () => {
       try {
-        const update = await window.pywebview.api.get_pending_update()
-        if (update) applyUpdate(update)
+        let update
+        while ((update = await window.pywebview.api.get_pending_update()) !== null) {
+          applyUpdate(update)
+        }
       } catch (_) {}
-    }, 100)
+    }, 50)
 
     return () => clearInterval(poll)
   })

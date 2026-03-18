@@ -95,12 +95,37 @@ class GeminiClient:
                              display_message=None,
                              chat_session=None, error_message=str(last_error))
 
-    def generate_response(self, user_input: str, chat_session: Any) -> str:
-        """ユーザー指示を送信し、AI応答テキストを返す（会話履歴付き）。"""
+    def generate_response(self, user_input: str, chat_session: Any,
+                          on_chunk: Any = None) -> str:
+        """ユーザー指示を送信し、AI応答テキストを返す（会話履歴付き）。
+
+        on_chunk が指定された場合はストリーミングで返す（リトライなし）。
+        """
         contents = self._history + [
             {"role": "user", "parts": [{"text": user_input}]}
         ]
 
+        if on_chunk is not None:
+            # ストリーミングモード
+            try:
+                full_text = ""
+                for chunk in self._client.models.generate_content_stream(
+                    model=self._model,
+                    contents=contents,
+                ):
+                    if chunk.text:
+                        full_text += chunk.text
+                        on_chunk(chunk.text)
+                self._history = contents + [
+                    {"role": "model", "parts": [{"text": full_text}]}
+                ]
+                logger.debug("generate_response(stream) succeeded: length=%d", len(full_text))
+                return full_text
+            except Exception as e:
+                logger.error("generate_response(stream) error: %s - %s", type(e).__name__, e)
+                raise
+
+        # 通常モード（リトライあり）
         last_error: Exception | None = None
         for attempt in range(MAX_RETRIES + 1):
             try:
