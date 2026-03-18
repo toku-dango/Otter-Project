@@ -20,3 +20,15 @@ class ClipboardService:
         except Exception as e:
             logger.error("Clipboard copy failed: %s", type(e).__name__)
             return False
+
+    def read(self) -> str | None:
+        """クリップボードのテキストを読み取る。空・失敗時は None を返す。"""
+        try:
+            text = pyperclip.paste()
+            if text and text.strip():
+                logger.debug("Clipboard read succeeded: length=%d", len(text))
+                return text.strip()
+            return None
+        except Exception as e:
+            logger.error("Clipboard read failed: %s", type(e).__name__)
+            return None

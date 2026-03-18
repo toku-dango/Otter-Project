@@ -14,14 +14,29 @@ MAX_RETRIES = 3
 BACKOFF_BASE = 1.0
 RETRYABLE_ERRORS = ("ServiceUnavailable", "DeadlineExceeded", "ResourceExhausted", "ServerError")
 
-PRELOAD_PROMPT = """\
+PRELOAD_PROMPT_IMAGE_ONLY = """\
 画面を確認し、以下の形式のみで回答：
 
 ---DETAIL---
-（アプリ名・ファイル名・表示内容・作業を簡潔に）
+（アプリ名・ファイル名・表示中のテキスト内容・ユーザーの作業を具体的に。テキストは正確に抽出すること。）
 
 ---DISPLAY---
 （1文。「今は〜してるね。」口調で。）
+"""
+
+PRELOAD_PROMPT_WITH_CLIPBOARD = """\
+ユーザーが以下のテキストを選択しています：
+---
+{clipboard_text}
+---
+このテキストが表示されている画面も添付します。
+以下の形式のみで回答：
+
+---DETAIL---
+（選択テキストの内容・ドキュメント種別（論文/コード/記事等）・アプリ名・周辺の文脈を具体的に。）
+
+---DISPLAY---
+（1文。選択内容を確認した旨。「〜を選択してるね。」口調で。）
 """
 
 
@@ -56,17 +71,28 @@ class GeminiClient:
         self._history: list[dict] = []
         logger.debug("GeminiClient initialized: model=%s", model)
 
-    def preload_context(self, image_base64: str) -> PreloadResult:
-        """スクリーンショットを送信し、AIに画面状況を事前把握させる。"""
+    def preload_context(self, image_base64: str,
+                        clipboard_text: str | None = None) -> PreloadResult:
+        """スクリーンショットを送信し、AIに画面状況を事前把握させる。
+
+        clipboard_text が指定された場合はそのテキストを優先コンテキストとして使用する。
+        """
         image_data = base64.b64decode(image_base64)
         image = Image.open(BytesIO(image_data))
+
+        if clipboard_text:
+            prompt = PRELOAD_PROMPT_WITH_CLIPBOARD.format(
+                clipboard_text=clipboard_text[:2000]  # 長すぎる場合は切り捨て
+            )
+        else:
+            prompt = PRELOAD_PROMPT_IMAGE_ONLY
 
         last_error: Exception | None = None
         for attempt in range(MAX_RETRIES + 1):
             try:
                 response = self._client.models.generate_content(
                     model=self._model,
-                    contents=[PRELOAD_PROMPT, image],
+                    contents=[prompt, image],
                 )
                 detail, display = _parse_preload_response(response.text)
                 self._history = [

@@ -81,7 +81,12 @@ class AssistantOrchestrator:
         threading.Thread(target=self._preload_worker, daemon=True).start()
 
     def _preload_worker(self) -> None:
-        """バックグラウンドスレッド: キャプチャ → Gemini事前把握（PAT-02）。"""
+        """バックグラウンドスレッド: クリップボード読み取り → キャプチャ → Gemini事前把握。"""
+        # クリップボードのテキストを取得（選択テキストがあれば優先コンテキストに使用）
+        clipboard_text = self._clipboard.read()
+        if clipboard_text:
+            logger.debug("Clipboard text found: length=%d", len(clipboard_text))
+
         capture_result = self._capture.capture()
 
         if not capture_result.success:
@@ -92,7 +97,10 @@ class AssistantOrchestrator:
             )
             return
 
-        preload_result = self._gemini.preload_context(capture_result.image_base64)
+        preload_result = self._gemini.preload_context(
+            capture_result.image_base64,
+            clipboard_text=clipboard_text,
+        )
         self._widget.after(
             0,
             lambda: self._on_preload_done(
