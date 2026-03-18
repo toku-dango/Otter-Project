@@ -8,6 +8,7 @@
   let statusMsg  = $state('Ready')
   let responseText = $state('')
   let showCopy = $state(false)
+  let contextText = $state('')     // 画面キャプチャ分析結果
 
   // ── Python → JS: polling で状態更新を受け取る ────────────────────────
   function applyUpdate(update) {
@@ -25,6 +26,10 @@
       responseText = ''
     } else if (update.type === 'ai_chunk') {
       responseText += update.value
+    } else if (update.type === 'context') {
+      contextText = update.value
+    } else if (update.type === 'context_loading') {
+      contextText = ''
     }
   }
 
@@ -105,6 +110,14 @@
       >✕</button>
     </div>
   </header>
+
+  <!-- 画面コンテキスト表示 -->
+  {#if contextText}
+    <div class="context-bar">
+      <span class="context-icon">🖥️</span>
+      <span class="context-text">{contextText}</span>
+    </div>
+  {/if}
 
   <!-- 応答エリア -->
   <div class="response-wrap">
@@ -187,6 +200,20 @@
     justify-content: center;
   }
   .close-btn:hover { background: #3a1a1a; color: #ff6b6b; }
+
+  .context-bar {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-sub);
+    flex-shrink: 0;
+  }
+  .context-icon { flex-shrink: 0; }
+  .context-text { line-height: 1.4; }
 
   .response-wrap {
     flex: 1;
