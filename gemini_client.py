@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 MAX_RETRIES = 3
 BACKOFF_BASE = 1.0
-RETRYABLE_ERRORS = ("ServiceUnavailable", "DeadlineExceeded", "ResourceExhausted")
+RETRYABLE_ERRORS = ("ServiceUnavailable", "DeadlineExceeded", "ResourceExhausted", "ServerError")
 
 PRELOAD_PROMPT = """\
 この画面の内容を把握してください。
@@ -59,28 +59,42 @@ class GeminiClient:
 
     def preload_context(self, image_base64: str) -> PreloadResult:
         """スクリーンショットを送信し、AIに画面状況を事前把握させる。"""
-        try:
-            image_data = base64.b64decode(image_base64)
-            image = Image.open(BytesIO(image_data))
-            response = self._client.models.generate_content(
-                model=self._model,
-                contents=[PRELOAD_PROMPT, image],
-            )
-            detail, display = _parse_preload_response(response.text)
-            self._history = [
-                {"role": "user", "parts": [{"text": f"[画面コンテキスト] {detail}"}]},
-                {"role": "model", "parts": [{"text": "画面の内容を確認しました。何かご質問はありますか？"}]},
-            ]
-            logger.debug("preload_context succeeded")
-            return PreloadResult(success=True, context_summary=detail,
-                                 display_message=display,
-                                 chat_session=self._history, error_message=None)
-        except Exception as e:
-            logger.error("preload_context failed: %s - %s", type(e).__name__, e)
-            self._history = []
-            return PreloadResult(success=False, context_summary=None,
-                                 display_message=None,
-                                 chat_session=None, error_message=str(e))
+        image_data = base64.b64decode(image_base64)
+        image = Image.open(BytesIO(image_data))
+
+        last_error: Exception | None = None
+        for attempt in range(MAX_RETRIES + 1):
+            try:
+                response = self._client.models.generate_content(
+                    model=self._model,
+                    contents=[PRELOAD_PROMPT, image],
+                )
+                detail, display = _parse_preload_response(response.text)
+                self._history = [
+                    {"role": "user", "parts": [{"text": f"[画面コンテキスト] {detail}"}]},
+                    {"role": "model", "parts": [{"text": "画面の内容を確認しました。何かご質問はありますか？"}]},
+                ]
+                logger.debug("preload_context succeeded")
+                return PreloadResult(success=True, context_summary=detail,
+                                     display_message=display,
+                                     chat_session=self._history, error_message=None)
+            except Exception as e:
+                last_error = e
+                if type(e).__name__ in RETRYABLE_ERRORS and attempt < MAX_RETRIES:
+                    wait = BACKOFF_BASE * (2 ** attempt)
+                    logger.warning("preload_context retrying in %.1fs: %s", wait, type(e).__name__)
+                    time.sleep(wait)
+                else:
+                    logger.error("preload_context failed: %s - %s", type(e).__name__, e)
+                    self._history = []
+                    return PreloadResult(success=False, context_summary=None,
+                                         display_message=None,
+                                         chat_session=None, error_message=str(e))
+
+        self._history = []
+        return PreloadResult(success=False, context_summary=None,
+                             display_message=None,
+                             chat_session=None, error_message=str(last_error))
 
     def generate_response(self, user_input: str, chat_session: Any) -> str:
         """ユーザー指示を送信し、AI応答テキストを返す（会話履歴付き）。"""
