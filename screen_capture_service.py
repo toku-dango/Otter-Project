@@ -48,8 +48,18 @@ class ScreenCaptureService:
                     "RGB", screenshot.size, screenshot.bgra, "raw", "BGRX"
                 )
 
+                # 短辺を1280px以下にリサイズ（アップロード・推論時間削減）
+                max_short_side = 1280
+                w, h = img.size
+                short_side = min(w, h)
+                if short_side > max_short_side:
+                    scale = max_short_side / short_side
+                    img = img.resize(
+                        (int(w * scale), int(h * scale)), Image.LANCZOS
+                    )
+
                 buffer = BytesIO()
-                img.save(buffer, format="PNG")
+                img.save(buffer, format="JPEG", quality=85)
                 image_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
 
             logger.debug(
