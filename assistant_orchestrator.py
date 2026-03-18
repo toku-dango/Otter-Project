@@ -83,7 +83,7 @@ class AssistantOrchestrator:
     def _preload_worker(self) -> None:
         """バックグラウンドスレッド: クリップボード読み取り → キャプチャ → Gemini事前把握。"""
         # クリップボードのテキストを取得（選択テキストがあれば優先コンテキストに使用）
-        clipboard_text = self._clipboard.read()
+        clipboard_text = self._clipboard.read_fresh()
         if clipboard_text:
             preview = clipboard_text[:100].replace('\n', ' ')
             logger.info("preload context: [クリップボード+画像] 選択テキスト(%d文字) → 「%s%s」",

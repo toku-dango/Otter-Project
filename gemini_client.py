@@ -95,8 +95,16 @@ class GeminiClient:
                     contents=[prompt, image],
                 )
                 detail, display = _parse_preload_response(response.text)
+                # 選択テキストがある場合は原文をそのまま履歴に埋め込む
+                if clipboard_text:
+                    context_text = (
+                        f"[画面コンテキスト]\n{detail}\n\n"
+                        f"[ユーザーが選択したテキスト（原文）]\n{clipboard_text}"
+                    )
+                else:
+                    context_text = f"[画面コンテキスト]\n{detail}"
                 self._history = [
-                    {"role": "user", "parts": [{"text": f"[画面コンテキスト] {detail}"}]},
+                    {"role": "user", "parts": [{"text": context_text}]},
                     {"role": "model", "parts": [{"text": "画面の内容を確認しました。何かご質問はありますか？"}]},
                 ]
                 logger.debug("preload_context succeeded")
