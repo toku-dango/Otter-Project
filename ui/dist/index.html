@@ -1,14 +1,500 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ui</title>
-    <script type="module" crossorigin src="./assets/index-CB9P9chE.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-CvBE2bGD.css">
-  </head>
-  <body>
-    <div id="app"></div>
-  </body>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Otter</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #0e0e12;
+      --surface:     #16161c;
+      --surface2:    #1e1e26;
+      --border:      #2a2a36;
+      --text:        #e8e8f0;
+      --text-sub:    #7070a0;
+      --accent:      #6c63ff;
+      --accent-hov:  #5a52e0;
+      --bubble-ai:   #1e1e2e;
+      --context-bg:  #0d1117;
+      --context-bdr: #1e3a5f;
+      --context-lbl: #4a8fc4;
+    }
+
+    html, body { height: 100%; background: var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: var(--text); font-size: 14px; }
+
+    .app { display: flex; flex-direction: column; height: 100vh;
+      border: 1px solid var(--border); border-radius: 16px; overflow: hidden;
+      box-shadow: 0 24px 64px rgba(0,0,0,.6), 0 4px 16px rgba(0,0,0,.4); }
+
+    /* ── Header ── */
+    .header { display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      flex-shrink: 0; cursor: grab; user-select: none; }
+    .header:active { cursor: grabbing; }
+    .otter-img { width: 52px; height: 52px; object-fit: contain;
+      border-radius: 8px; flex-shrink: 0; }
+    .header-info { flex: 1; }
+    .header-title { font-size: 15px; font-weight: 700; letter-spacing: .3px; }
+    .header-status { font-size: 11px; color: var(--text-sub); margin-top: 2px;
+      transition: color .2s; }
+    .header-status.thinking { color: var(--accent);
+      animation: blink 1.2s ease-in-out infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* ── Main area ── */
+    .main-area { flex: 1; overflow: hidden; display: flex;
+      flex-direction: column; min-height: 0; }
+
+    /* ── Context panel (top) ── */
+    .context-panel { flex: 0 0 28%; min-height: 0; display: flex;
+      flex-direction: column; background: var(--context-bg);
+      border-bottom: 1px solid var(--context-bdr); }
+    .context-label { display: flex; align-items: center; gap: 6px;
+      padding: 5px 12px; font-size: 10px; font-weight: 600;
+      color: var(--context-lbl); letter-spacing: .6px; text-transform: uppercase;
+      border-bottom: 1px solid var(--context-bdr); flex-shrink: 0;
+      background: rgba(30,58,95,.2); }
+    .context-label::before { content: ''; width: 6px; height: 6px;
+      border-radius: 50%; background: var(--context-lbl);
+      animation: pulse 2s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    .context-empty { flex: 1; display: flex; align-items: center;
+      justify-content: center; color: var(--text-sub); font-size: 12px;
+      padding: 8px; text-align: center; }
+    .context-text { flex: 1; overflow-y: auto; padding: 10px 12px;
+      font-size: 12px; line-height: 1.65; color: #a8c4e0;
+      white-space: pre-wrap; word-break: break-word; display: none; }
+    .context-text.visible { display: block; }
+
+    /* context loading animation */
+    .context-loading { flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 10px;
+      color: var(--context-lbl); font-size: 12px; display: none; }
+    .context-loading.visible { display: flex; }
+    .scan-bar-wrap { width: 80%; height: 3px; background: rgba(74,143,196,.2);
+      border-radius: 2px; overflow: hidden; }
+    .scan-bar { height: 100%; width: 40%; background: var(--context-lbl);
+      border-radius: 2px; animation: scan 1.4s ease-in-out infinite; }
+    @keyframes scan { 0%{transform:translateX(-100%)} 100%{transform:translateX(300%)} }
+
+    /* ── Chat panel (bottom) ── */
+    .chat-panel { flex: 1; min-height: 0; display: flex;
+      flex-direction: column; background: var(--bg); }
+    .chat-label { display: flex; align-items: center; gap: 6px; padding: 5px 12px;
+      font-size: 10px; font-weight: 600; color: var(--text-sub);
+      letter-spacing: .6px; text-transform: uppercase;
+      border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 10px 12px;
+      display: flex; flex-direction: column; gap: 10px; }
+    .chat-empty { display: flex; align-items: center;
+      justify-content: center; color: var(--text-sub); padding: 20px 0; }
+
+    /* ── Message bubbles ── */
+    .msg { display: flex; flex-direction: column; max-width: 85%; }
+    .msg.user { align-self: flex-end; align-items: flex-end; }
+    .msg.ai   { align-self: flex-start; align-items: flex-start; }
+    .bubble { padding: 9px 13px; border-radius: 14px; line-height: 1.6;
+      font-size: 13px; white-space: pre-wrap; word-break: break-word; }
+    .msg.user .bubble { background: var(--accent); color: #fff;
+      border-bottom-right-radius: 4px; }
+    .msg.ai .bubble { background: var(--bubble-ai); color: var(--text);
+      border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+    .msg-time { font-size: 10px; color: var(--text-sub); margin-top: 3px;
+      padding: 0 4px; }
+
+    /* markdown in AI bubble */
+    .bubble.md p { margin: 0 0 6px; }
+    .bubble.md p:last-child { margin-bottom: 0; }
+    .bubble.md h1,.bubble.md h2,.bubble.md h3 { margin: 6px 0 4px;
+      font-weight: 700; line-height: 1.3; }
+    .bubble.md h1 { font-size: 15px; }
+    .bubble.md h2 { font-size: 14px; }
+    .bubble.md h3 { font-size: 13px; }
+    .bubble.md ul,.bubble.md ol { padding-left: 18px; margin: 4px 0; }
+    .bubble.md li { margin: 2px 0; }
+    .bubble.md code { background: rgba(0,0,0,.3); border-radius: 4px;
+      padding: 1px 5px; font-family: monospace; font-size: 12px; }
+    .bubble.md pre { background: rgba(0,0,0,.35); border-radius: 8px;
+      padding: 10px; margin: 6px 0; overflow-x: auto; }
+    .bubble.md pre code { background: none; padding: 0; font-size: 12px;
+      white-space: pre; }
+    .bubble.md strong { font-weight: 700; }
+    .bubble.md em { font-style: italic; opacity: .9; }
+    .bubble.md hr { border: none; border-top: 1px solid rgba(255,255,255,.15);
+      margin: 6px 0; }
+
+    /* typing indicator (3 dots) */
+    .typing-dots { display: flex; align-items: center; gap: 5px;
+      padding: 11px 16px; }
+    .typing-dots span { width: 7px; height: 7px; border-radius: 50%;
+      background: var(--text-sub); animation: dot 1.2s ease-in-out infinite; }
+    .typing-dots span:nth-child(2) { animation-delay: .2s; }
+    .typing-dots span:nth-child(3) { animation-delay: .4s; }
+    @keyframes dot { 0%,80%,100%{opacity:.3;transform:scale(.8)}
+                     40%{opacity:1;transform:scale(1)} }
+
+    /* ── Input area ── */
+    .input-area { background: var(--surface); border-top: 1px solid var(--border);
+      padding: 10px 12px 12px; display: flex; flex-direction: column;
+      gap: 8px; flex-shrink: 0; }
+    .copy-row { display: none; }
+    .copy-row.visible { display: flex; }
+    .copy-btn { background: transparent; border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text-sub); font-size: 11px;
+      padding: 3px 10px; cursor: pointer; transition: background .15s; }
+    .copy-btn:hover { background: var(--border); }
+    textarea { width: 100%; background: var(--surface2);
+      border: 1px solid var(--border); border-radius: 10px; color: var(--text);
+      font-size: 14px; font-family: inherit; padding: 9px 12px; resize: none;
+      outline: none; line-height: 1.5; transition: border-color .15s; }
+    textarea:focus { border-color: var(--accent); }
+    textarea::placeholder { color: var(--text-sub); }
+    textarea:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-row { display: flex; align-items: center; justify-content: space-between; }
+    .paste-btn { background: transparent; border: 1px solid var(--border);
+      border-radius: 14px; color: var(--text-sub); font-size: 12px;
+      padding: 5px 14px; cursor: pointer; transition: background .15s; }
+    .paste-btn:hover:not(:disabled) { background: var(--border); }
+    .paste-btn:disabled { opacity: .4; cursor: not-allowed; }
+    .send-btn { background: var(--accent); border: none; border-radius: 18px;
+      color: #fff; font-size: 13px; font-weight: 600; padding: 7px 20px;
+      cursor: pointer; transition: background .15s, opacity .15s; }
+    .send-btn:hover:not(:disabled) { background: var(--accent-hov); }
+    .send-btn:disabled { opacity: .4; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <div class="app">
+
+    <!-- Header -->
+    <div class="header" id="header">
+      <img id="otter-img" class="otter-img" src="otter/idle.gif" alt="Otter">
+      <div class="header-info">
+        <div class="header-title">Otter</div>
+        <div class="header-status" id="status-text">Ready</div>
+      </div>
+    </div>
+
+    <div class="main-area">
+
+      <!-- Context panel -->
+      <div class="context-panel">
+        <div class="context-label">画面の状況</div>
+        <div class="context-empty" id="context-empty">ショートカットキーを押すと画面を分析します</div>
+        <div class="context-loading" id="context-loading">
+          <div class="scan-bar-wrap"><div class="scan-bar"></div></div>
+          <span>画面を確認中...</span>
+        </div>
+        <div class="context-text" id="context-text"></div>
+      </div>
+
+      <!-- Chat panel -->
+      <div class="chat-panel">
+        <div class="chat-label">会話</div>
+        <div class="chat-messages" id="chat-messages">
+          <div class="chat-empty" id="chat-empty">どうした？気軽に聞いて 🦦</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Input -->
+    <div class="input-area">
+      <div class="copy-row" id="copy-row">
+        <button class="copy-btn" id="copy-btn">Copy response</button>
+      </div>
+      <textarea id="input-textarea" rows="3"
+        placeholder="メッセージを入力　Enter で送信"
+        data-testid="input-textarea"></textarea>
+      <div class="btn-row">
+        <button class="paste-btn" id="paste-btn" data-testid="paste-button">Paste</button>
+        <button class="send-btn" id="send-btn" disabled data-testid="send-button">Send ↵</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // ── Markdown renderer ─────────────────────────────────────────────────
+    function renderMd(raw) {
+      const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+
+      function inline(s) {
+        return s
+          .replace(/`([^`]+)`/g, '<code>$1</code>')
+          .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+          .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
+          .replace(/~~([^~\n]+)~~/g, '<del>$1</del>')
+      }
+
+      const isBlock = l => /^(#{1,3}\s|```|[*\-]\s|\d+\.\s|---+$)/.test(l) || l.trim() === ''
+
+      const lines = raw.split('\n')
+      let out = ''
+      let i = 0
+
+      while (i < lines.length) {
+        const line = lines[i]
+
+        if (line.startsWith('```')) {
+          const codeLines = []; i++
+          while (i < lines.length && !lines[i].startsWith('```')) {
+            codeLines.push(lines[i]); i++
+          }
+          out += `<pre><code>${esc(codeLines.join('\n'))}</code></pre>`
+          i++; continue
+        }
+
+        const hm = line.match(/^(#{1,3})\s+(.+)/)
+        if (hm) {
+          out += `<h${hm[1].length}>${inline(esc(hm[2]))}</h${hm[1].length}>`
+          i++; continue
+        }
+
+        if (/^---+$/.test(line.trim())) {
+          out += '<hr>'; i++; continue
+        }
+
+        if (/^([*\-]|\d+\.)\s/.test(line)) {
+          const tag = /^\d+\./.test(line) ? 'ol' : 'ul'
+          out += `<${tag}>`
+          while (i < lines.length && /^([*\-]|\d+\.)\s/.test(lines[i])) {
+            const m = lines[i].match(/^(?:[*\-]|\d+\.)\s+(.*)/)
+            out += `<li>${inline(esc(m ? m[1] : ''))}</li>`
+            i++
+          }
+          out += `</${tag}>`; continue
+        }
+
+        if (line.trim() === '') { i++; continue }
+
+        const para = []
+        while (i < lines.length && !isBlock(lines[i])) {
+          para.push(lines[i]); i++
+        }
+        if (para.length) {
+          out += `<p>${inline(esc(para.join('\n')))}</p>`
+        } else {
+          out += `<p>${inline(esc(lines[i]))}</p>`
+          i++
+        }
+      }
+
+      return out || `<p>${inline(esc(raw))}</p>`
+    }
+
+    const otterGifs = {
+      idle: 'otter/idle.gif', thinking: 'otter/thinking.gif',
+      speaking: 'otter/speaking.gif', done: 'otter/done.gif',
+    }
+
+    const img            = document.getElementById('otter-img')
+    const statusEl       = document.getElementById('status-text')
+    const contextEmpty   = document.getElementById('context-empty')
+    const contextLoading = document.getElementById('context-loading')
+    const contextText    = document.getElementById('context-text')
+    const chatMessages   = document.getElementById('chat-messages')
+    const chatEmpty      = document.getElementById('chat-empty')
+    const copyRow        = document.getElementById('copy-row')
+    const copyBtn        = document.getElementById('copy-btn')
+    const textarea       = document.getElementById('input-textarea')
+    const pasteBtn       = document.getElementById('paste-btn')
+    const sendBtn        = document.getElementById('send-btn')
+
+    let thinkingBubble  = null
+    let streamingBubble = null   // ストリーミング中のバブル参照
+    let lastAiText      = ''
+
+    // ── State ──────────────────────────────────────────────────────────────
+    function setState(state) {
+      const s = state.toLowerCase()
+      img.src = otterGifs[s] || otterGifs.idle
+      statusEl.classList.toggle('thinking', s === 'thinking')
+      textarea.disabled = (s === 'thinking')
+      pasteBtn.disabled = (s === 'thinking')
+      updateSendBtn()
+      copyRow.classList.toggle('visible', state === 'DONE')
+      if (state === 'DONE') setTimeout(() => setState('idle'), 2000)
+    }
+
+    function setStatus(msg) { statusEl.textContent = msg }
+
+    // ── Context panel ──────────────────────────────────────────────────────
+    function showContextLoading() {
+      contextEmpty.style.display = 'none'
+      contextText.classList.remove('visible')
+      contextLoading.classList.add('visible')
+    }
+
+    function displayContext(text) {
+      contextLoading.classList.remove('visible')
+      contextEmpty.style.display = 'none'
+      contextText.textContent = text
+      contextText.classList.add('visible')
+    }
+
+    // ── Chat panel ─────────────────────────────────────────────────────────
+    function now() {
+      return new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+    }
+
+    function addMessage(role, text) {
+      chatEmpty.style.display = 'none'
+      const msg = document.createElement('div')
+      msg.className = `msg ${role}`
+      const bubble = document.createElement('div')
+      bubble.className = 'bubble'
+      bubble.textContent = text
+      const time = document.createElement('div')
+      time.className = 'msg-time'
+      time.textContent = now()
+      msg.appendChild(bubble)
+      msg.appendChild(time)
+      chatMessages.appendChild(msg)
+      chatMessages.scrollTop = chatMessages.scrollHeight
+      return msg
+    }
+
+    function showAiThinking() {
+      chatEmpty.style.display = 'none'
+      if (thinkingBubble) thinkingBubble.remove()
+      const msg = document.createElement('div')
+      msg.className = 'msg ai'
+      const bubble = document.createElement('div')
+      bubble.className = 'bubble'
+      bubble.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>'
+      msg.appendChild(bubble)
+      chatMessages.appendChild(msg)
+      chatMessages.scrollTop = chatMessages.scrollHeight
+      thinkingBubble = msg
+    }
+
+    function displayAiMessage(text) {
+      if (thinkingBubble) { thinkingBubble.remove(); thinkingBubble = null }
+      streamingBubble = null
+      lastAiText = text
+      chatEmpty.style.display = 'none'
+      const msg = document.createElement('div')
+      msg.className = 'msg ai'
+      const bubble = document.createElement('div')
+      bubble.className = 'bubble md'
+      bubble.innerHTML = renderMd(text)
+      const time = document.createElement('div')
+      time.className = 'msg-time'
+      time.textContent = now()
+      msg.appendChild(bubble)
+      msg.appendChild(time)
+      chatMessages.appendChild(msg)
+      chatMessages.scrollTop = chatMessages.scrollHeight
+    }
+
+    // ── Streaming ──────────────────────────────────────────────────────────
+    function startAiStream() {
+      if (thinkingBubble) { thinkingBubble.remove(); thinkingBubble = null }
+      lastAiText = ''
+      chatEmpty.style.display = 'none'
+      const msg = document.createElement('div')
+      msg.className = 'msg ai'
+      const bubble = document.createElement('div')
+      bubble.className = 'bubble md'
+      const time = document.createElement('div')
+      time.className = 'msg-time'
+      time.textContent = now()
+      msg.appendChild(bubble)
+      msg.appendChild(time)
+      chatMessages.appendChild(msg)
+      chatMessages.scrollTop = chatMessages.scrollHeight
+      streamingBubble = { bubble, time }
+    }
+
+    function appendAiChunk(chunk) {
+      if (!streamingBubble) return
+      lastAiText += chunk
+      streamingBubble.bubble.innerHTML = renderMd(lastAiText)
+      chatMessages.scrollTop = chatMessages.scrollHeight
+    }
+
+    // ── Polling ────────────────────────────────────────────────────────────
+    function applyUpdate(update) {
+      if (!update) return
+      if (update.type === 'state')           setState(update.value)
+      if (update.type === 'status')          setStatus(update.value)
+      if (update.type === 'context_loading') showContextLoading()
+      if (update.type === 'context')         displayContext(update.value)
+      if (update.type === 'user_message')    addMessage('user', update.value)
+      if (update.type === 'ai_thinking')     showAiThinking()
+      if (update.type === 'ai_message')      displayAiMessage(update.value)
+      if (update.type === 'ai_stream_start') startAiStream()
+      if (update.type === 'ai_chunk')        appendAiChunk(update.value)
+    }
+
+    function startPolling() {
+      setInterval(async () => {
+        try {
+          let update
+          while ((update = await window.pywebview.api.get_pending_update()) !== null) {
+            applyUpdate(update)
+          }
+        } catch (_) {}
+      }, 50)
+    }
+
+    // ── Events ────────────────────────────────────────────────────────────
+    textarea.addEventListener('input', updateSendBtn)
+    textarea.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitText() }
+    })
+    sendBtn.addEventListener('click', submitText)
+
+    pasteBtn.addEventListener('click', () => {
+      if (navigator.clipboard) {
+        navigator.clipboard.readText().then(t => {
+          textarea.value += t; textarea.focus(); updateSendBtn()
+        })
+      }
+    })
+
+    copyBtn.addEventListener('click', () => {
+      if (window.pywebview) window.pywebview.api.copy_response()
+      copyBtn.textContent = 'Copied!'
+      setTimeout(() => { copyBtn.textContent = 'Copy response' }, 1200)
+    })
+
+    function submitText() {
+      const text = textarea.value.trim()
+      if (!text || textarea.disabled) return
+      textarea.value = ''
+      updateSendBtn()
+      if (window.pywebview) window.pywebview.api.submit_text(text)
+    }
+
+    function updateSendBtn() {
+      sendBtn.disabled = textarea.disabled || textarea.value.trim() === ''
+    }
+
+    // ── Drag ─────────────────────────────────────────────────────────────
+    let drag = null
+    document.getElementById('header').addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return
+      drag = { mx: e.screenX, my: e.screenY }
+    })
+    document.addEventListener('mousemove', (e) => {
+      if (!drag || !window.pywebview) return
+      window.pywebview.api.move_window(e.screenX - drag.mx, e.screenY - drag.my)
+      drag = { mx: e.screenX, my: e.screenY }
+    })
+    document.addEventListener('mouseup', () => { drag = null })
+
+    // ── Init ──────────────────────────────────────────────────────────────
+    window.addEventListener('pywebviewready', () => {
+      window.pywebview.api.on_ready()
+      startPolling()
+    })
+  </script>
+</body>
 </html>
