@@ -50,7 +50,7 @@ class PreloadResult:
 class GeminiClient:
     """Gemini API と通信し、画面理解・応答生成を行う（google.genai SDK）。"""
 
-    def __init__(self, api_key: str, model: str = "gemini-2.0-flash-lite") -> None:
+    def __init__(self, api_key: str, model: str = "gemini-2.5-flash-lite") -> None:
         self._client = genai.Client(api_key=api_key)
         self._model = model
         # 会話履歴: [{"role": "user"/"model", "parts": [{"text": "..."}]}]
