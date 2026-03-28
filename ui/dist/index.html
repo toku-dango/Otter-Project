@@ -31,15 +31,13 @@
       box-shadow: 0 24px 64px rgba(0,0,0,.6), 0 4px 16px rgba(0,0,0,.4); }
 
     /* ── Header ── */
-    .header { display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+    .header { display: flex; align-items: center; gap: 8px; padding: 5px 12px;
       background: var(--surface); border-bottom: 1px solid var(--border);
       flex-shrink: 0; cursor: grab; user-select: none; }
     .header:active { cursor: grabbing; }
-    .otter-img { width: 52px; height: 52px; object-fit: contain;
-      border-radius: 8px; flex-shrink: 0; }
-    .header-info { flex: 1; }
-    .header-title { font-size: 15px; font-weight: 700; letter-spacing: .3px; }
-    .header-status { font-size: 11px; color: var(--text-sub); margin-top: 2px;
+    .header-title { font-size: 13px; font-weight: 700; letter-spacing: .3px; flex-shrink: 0; }
+    .header-sep { color: var(--border); font-size: 12px; }
+    .header-status { font-size: 11px; color: var(--text-sub);
       transition: color .2s; }
     .header-status.thinking { color: var(--accent);
       animation: blink 1.2s ease-in-out infinite; }
@@ -52,16 +50,26 @@
     /* ── Context panel (top) ── */
     .context-panel { flex: 0 0 28%; min-height: 0; display: flex;
       flex-direction: column; background: var(--context-bg);
-      border-bottom: 1px solid var(--context-bdr); }
+      border-bottom: 1px solid var(--context-bdr);
+      transition: flex-basis .2s ease; }
+    .context-panel.collapsed { flex: 0 0 auto; }
+    .context-panel.collapsed .context-empty,
+    .context-panel.collapsed .context-loading,
+    .context-panel.collapsed .context-text { display: none !important; }
+
     .context-label { display: flex; align-items: center; gap: 6px;
-      padding: 5px 12px; font-size: 10px; font-weight: 600;
+      padding: 4px 10px; font-size: 10px; font-weight: 600;
       color: var(--context-lbl); letter-spacing: .6px; text-transform: uppercase;
       border-bottom: 1px solid var(--context-bdr); flex-shrink: 0;
       background: rgba(30,58,95,.2); }
     .context-label::before { content: ''; width: 6px; height: 6px;
       border-radius: 50%; background: var(--context-lbl);
-      animation: pulse 2s ease-in-out infinite; }
+      animation: pulse 2s ease-in-out infinite; flex-shrink: 0; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+    .context-toggle { margin-left: auto; background: none; border: none;
+      color: var(--context-lbl); cursor: pointer; font-size: 10px;
+      padding: 0 2px; line-height: 1; opacity: .7; flex-shrink: 0; }
+    .context-toggle:hover { opacity: 1; }
 
     .context-empty { flex: 1; display: flex; align-items: center;
       justify-content: center; color: var(--text-sub); font-size: 12px;
@@ -85,7 +93,7 @@
     /* ── Chat panel (bottom) ── */
     .chat-panel { flex: 1; min-height: 0; display: flex;
       flex-direction: column; background: var(--bg); }
-    .chat-label { display: flex; align-items: center; gap: 6px; padding: 5px 12px;
+    .chat-label { display: flex; align-items: center; gap: 6px; padding: 4px 12px;
       font-size: 10px; font-weight: 600; color: var(--text-sub);
       letter-spacing: .6px; text-transform: uppercase;
       border-bottom: 1px solid var(--border); flex-shrink: 0; }
@@ -140,30 +148,26 @@
 
     /* ── Input area ── */
     .input-area { background: var(--surface); border-top: 1px solid var(--border);
-      padding: 10px 12px 12px; display: flex; flex-direction: column;
-      gap: 8px; flex-shrink: 0; }
+      padding: 8px 10px; display: flex; flex-direction: column;
+      gap: 6px; flex-shrink: 0; }
     .copy-row { display: none; }
     .copy-row.visible { display: flex; }
     .copy-btn { background: transparent; border: 1px solid var(--border);
       border-radius: 6px; color: var(--text-sub); font-size: 11px;
       padding: 3px 10px; cursor: pointer; transition: background .15s; }
     .copy-btn:hover { background: var(--border); }
-    textarea { width: 100%; background: var(--surface2);
+    .input-row { display: flex; align-items: center; gap: 8px; }
+    textarea { flex: 1; background: var(--surface2);
       border: 1px solid var(--border); border-radius: 10px; color: var(--text);
-      font-size: 14px; font-family: inherit; padding: 9px 12px; resize: none;
-      outline: none; line-height: 1.5; transition: border-color .15s; }
+      font-size: 14px; font-family: inherit; padding: 7px 12px; resize: none;
+      outline: none; line-height: 1.5; transition: border-color .15s;
+      height: 36px; overflow-y: hidden; overflow-x: auto; white-space: nowrap; }
     textarea:focus { border-color: var(--accent); }
     textarea::placeholder { color: var(--text-sub); }
     textarea:disabled { opacity: .5; cursor: not-allowed; }
-    .btn-row { display: flex; align-items: center; justify-content: space-between; }
-    .paste-btn { background: transparent; border: 1px solid var(--border);
-      border-radius: 14px; color: var(--text-sub); font-size: 12px;
-      padding: 5px 14px; cursor: pointer; transition: background .15s; }
-    .paste-btn:hover:not(:disabled) { background: var(--border); }
-    .paste-btn:disabled { opacity: .4; cursor: not-allowed; }
-    .send-btn { background: var(--accent); border: none; border-radius: 18px;
-      color: #fff; font-size: 13px; font-weight: 600; padding: 7px 20px;
-      cursor: pointer; transition: background .15s, opacity .15s; }
+    .send-btn { flex-shrink: 0; background: var(--accent); border: none;
+      border-radius: 18px; color: #fff; font-size: 13px; font-weight: 600;
+      padding: 7px 16px; cursor: pointer; transition: background .15s, opacity .15s; }
     .send-btn:hover:not(:disabled) { background: var(--accent-hov); }
     .send-btn:disabled { opacity: .4; cursor: not-allowed; }
   </style>
@@ -173,18 +177,19 @@
 
     <!-- Header -->
     <div class="header" id="header">
-      <img id="otter-img" class="otter-img" src="otter/idle.gif" alt="Otter">
-      <div class="header-info">
-        <div class="header-title">Otter</div>
-        <div class="header-status" id="status-text">Ready</div>
-      </div>
+      <span class="header-title">Otter</span>
+      <span class="header-sep">·</span>
+      <span class="header-status" id="status-text">Ready</span>
     </div>
 
     <div class="main-area">
 
       <!-- Context panel -->
-      <div class="context-panel">
-        <div class="context-label">画面の状況</div>
+      <div class="context-panel" id="context-panel">
+        <div class="context-label">
+          画面の状況
+          <button class="context-toggle" id="context-toggle" title="折りたたむ">▼</button>
+        </div>
         <div class="context-empty" id="context-empty">ショートカットキーを押すと画面を分析します</div>
         <div class="context-loading" id="context-loading">
           <div class="scan-bar-wrap"><div class="scan-bar"></div></div>
@@ -208,11 +213,10 @@
       <div class="copy-row" id="copy-row">
         <button class="copy-btn" id="copy-btn">Copy response</button>
       </div>
-      <textarea id="input-textarea" rows="3"
-        placeholder="メッセージを入力　Enter で送信"
-        data-testid="input-textarea"></textarea>
-      <div class="btn-row">
-        <button class="paste-btn" id="paste-btn" data-testid="paste-button">Paste</button>
+      <div class="input-row">
+        <textarea id="input-textarea" rows="1"
+          placeholder="メッセージを入力　Enter で送信"
+          data-testid="input-textarea"></textarea>
         <button class="send-btn" id="send-btn" disabled data-testid="send-button">Send ↵</button>
       </div>
     </div>
@@ -288,13 +292,9 @@
       return out || `<p>${inline(esc(raw))}</p>`
     }
 
-    const otterGifs = {
-      idle: 'otter/idle.gif', thinking: 'otter/thinking.gif',
-      speaking: 'otter/speaking.gif', done: 'otter/done.gif',
-    }
-
-    const img            = document.getElementById('otter-img')
     const statusEl       = document.getElementById('status-text')
+    const contextPanel   = document.getElementById('context-panel')
+    const contextToggle  = document.getElementById('context-toggle')
     const contextEmpty   = document.getElementById('context-empty')
     const contextLoading = document.getElementById('context-loading')
     const contextText    = document.getElementById('context-text')
@@ -303,26 +303,32 @@
     const copyRow        = document.getElementById('copy-row')
     const copyBtn        = document.getElementById('copy-btn')
     const textarea       = document.getElementById('input-textarea')
-    const pasteBtn       = document.getElementById('paste-btn')
     const sendBtn        = document.getElementById('send-btn')
 
     let thinkingBubble  = null
-    let streamingBubble = null   // ストリーミング中のバブル参照
+    let streamingBubble = null
     let lastAiText      = ''
 
     // ── State ──────────────────────────────────────────────────────────────
     function setState(state) {
       const s = state.toLowerCase()
-      img.src = otterGifs[s] || otterGifs.idle
       statusEl.classList.toggle('thinking', s === 'thinking')
       textarea.disabled = (s === 'thinking')
-      pasteBtn.disabled = (s === 'thinking')
       updateSendBtn()
       copyRow.classList.toggle('visible', state === 'DONE')
       if (state === 'DONE') setTimeout(() => setState('idle'), 2000)
     }
 
     function setStatus(msg) { statusEl.textContent = msg }
+
+    // ── Context panel toggle ───────────────────────────────────────────────
+    let contextCollapsed = false
+    contextToggle.addEventListener('click', () => {
+      contextCollapsed = !contextCollapsed
+      contextPanel.classList.toggle('collapsed', contextCollapsed)
+      contextToggle.textContent = contextCollapsed ? '▶' : '▼'
+      contextToggle.title = contextCollapsed ? '展開する' : '折りたたむ'
+    })
 
     // ── Context panel ──────────────────────────────────────────────────────
     function showContextLoading() {
@@ -450,14 +456,6 @@
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitText() }
     })
     sendBtn.addEventListener('click', submitText)
-
-    pasteBtn.addEventListener('click', () => {
-      if (navigator.clipboard) {
-        navigator.clipboard.readText().then(t => {
-          textarea.value += t; textarea.focus(); updateSendBtn()
-        })
-      }
-    })
 
     copyBtn.addEventListener('click', () => {
       if (window.pywebview) window.pywebview.api.copy_response()
