@@ -185,7 +185,7 @@
     <div class="main-area">
 
       <!-- Context panel -->
-      <div class="context-panel" id="context-panel">
+      <div class="context-panel collapsed" id="context-panel">
         <div class="context-label">
           画面の状況
           <button class="context-toggle" id="context-toggle" title="折りたたむ">▼</button>
@@ -322,7 +322,9 @@
     function setStatus(msg) { statusEl.textContent = msg }
 
     // ── Context panel toggle ───────────────────────────────────────────────
-    let contextCollapsed = false
+    let contextCollapsed = true
+    contextToggle.textContent = '▶'
+    contextToggle.title = '展開する'
     contextToggle.addEventListener('click', () => {
       contextCollapsed = !contextCollapsed
       contextPanel.classList.toggle('collapsed', contextCollapsed)
