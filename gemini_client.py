@@ -38,11 +38,13 @@ PRELOAD_PROMPT_IMAGE_ONLY = """\
 画面を確認し、以下の形式のみで回答：
 
 ---DETAIL---
-（アプリ名・ファイル名・表示中のテキスト内容・ユーザーの作業を具体的に。テキストは正確に抽出すること。）
+（アプリ名・作業内容を2〜3文で。テキスト全抽出は不要。）
 
 ---DISPLAY---
 （1文。「今は〜してるね。」口調で。）
 """
+
+STAGE1_MAX_SHORT_SIDE = 768  # Stage 1 用縮小サイズ（Stage 2 は元サイズを使用）
 
 
 
@@ -99,9 +101,22 @@ class GeminiClient:
         logger.debug("GeminiClient initialized: model=%s", model)
 
     def preload_context(self, image_base64: str) -> PreloadResult:
-        """スクリーンショットを送信し、AIに画面状況を事前把握させる。"""
+        """スクリーンショットを送信し、AIに画面状況を事前把握させる。
+
+        Stage 1 用に画像を 768px に縮小して送信する（速度優先）。
+        Stage 2 は元サイズの image_base64 をそのまま使う。
+        """
         image_data = base64.b64decode(image_base64)
         image = Image.open(BytesIO(image_data))
+
+        # Stage 1: 速度優先で縮小
+        w, h = image.size
+        short = min(w, h)
+        if short > STAGE1_MAX_SHORT_SIDE:
+            scale = STAGE1_MAX_SHORT_SIDE / short
+            image = image.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+            logger.debug("preload_context: resized to %dx%d for Stage 1", int(w * scale), int(h * scale))
+
         prompt = PRELOAD_PROMPT_IMAGE_ONLY
 
         last_error: Exception | None = None
