@@ -1,11 +1,13 @@
 import base64
 import logging
+import threading
 import time
 from dataclasses import dataclass, field
 from io import BytesIO
 from typing import Any
 
 from google import genai
+from google.genai import types
 from PIL import Image
 
 logger = logging.getLogger(__name__)
@@ -13,6 +15,24 @@ logger = logging.getLogger(__name__)
 MAX_RETRIES = 3
 BACKOFF_BASE = 1.0
 RETRYABLE_ERRORS = ("ServiceUnavailable", "DeadlineExceeded", "ResourceExhausted", "ServerError")
+
+DEEP_THINKING_MODEL = "gemini-2.5-flash"
+DEEP_THINKING_BUDGET = 1024
+
+DEEP_THINKING_PROMPT = """\
+以下の初期分析を踏まえ、画面をより深く分析してください：
+---
+{stage1_detail}
+---
+以下の形式のみで回答：
+
+---DEEP_DETAIL---
+（画面内テキストの正確な抽出・UI要素の状態（入力済み/エラー/無効等）・\
+ユーザーが詰まっている可能性があること・次に取りそうなアクション）
+
+---DEEP_DISPLAY---
+（2〜3文。より詳しく把握した状況。「〜してるね。〜しようとしてるのかな。」口調で。）
+"""
 
 PRELOAD_PROMPT_IMAGE_ONLY = """\
 画面を確認し、以下の形式のみで回答：
@@ -24,20 +44,6 @@ PRELOAD_PROMPT_IMAGE_ONLY = """\
 （1文。「今は〜してるね。」口調で。）
 """
 
-PRELOAD_PROMPT_WITH_CLIPBOARD = """\
-ユーザーが以下のテキストを選択しています：
----
-{clipboard_text}
----
-このテキストが表示されている画面も添付します。
-以下の形式のみで回答：
-
----DETAIL---
-（選択テキストの内容・ドキュメント種別（論文/コード/記事等）・アプリ名・周辺の文脈を具体的に。）
-
----DISPLAY---
-（1文。選択内容を確認した旨。「〜を選択してるね。」口調で。）
-"""
 
 
 def _parse_preload_response(text: str) -> tuple[str, str]:
@@ -52,12 +58,32 @@ def _parse_preload_response(text: str) -> tuple[str, str]:
     return detail, display
 
 
+def _parse_deep_response(text: str) -> tuple[str, str]:
+    """DEEP_DETAIL / DEEP_DISPLAY セクションを抽出して返す。"""
+    detail = text
+    display = text
+    if "---DEEP_DETAIL---" in text and "---DEEP_DISPLAY---" in text:
+        parts = text.split("---DEEP_DISPLAY---", 1)
+        display = parts[1].strip()
+        detail_part = parts[0].split("---DEEP_DETAIL---", 1)
+        detail = detail_part[1].strip() if len(detail_part) > 1 else text
+    return detail, display
+
+
 @dataclass(frozen=True)
 class PreloadResult:
     success: bool
     context_summary: str | None    # 詳細分析（LLMコンテキスト用）
     display_message: str | None    # 短いフレンドリーメッセージ（GUI表示用）
     chat_session: Any | None
+    error_message: str | None
+
+
+@dataclass(frozen=True)
+class DeepThinkingResult:
+    success: bool
+    enriched_context: str | None   # _history 差し替え用（詳細分析）
+    display_message: str | None    # context パネル更新用（2〜3文）
     error_message: str | None
 
 
@@ -69,23 +95,14 @@ class GeminiClient:
         self._model = model
         # 会話履歴: [{"role": "user"/"model", "parts": [{"text": "..."}]}]
         self._history: list[dict] = []
+        self._history_lock = threading.Lock()
         logger.debug("GeminiClient initialized: model=%s", model)
 
-    def preload_context(self, image_base64: str,
-                        clipboard_text: str | None = None) -> PreloadResult:
-        """スクリーンショットを送信し、AIに画面状況を事前把握させる。
-
-        clipboard_text が指定された場合はそのテキストを優先コンテキストとして使用する。
-        """
+    def preload_context(self, image_base64: str) -> PreloadResult:
+        """スクリーンショットを送信し、AIに画面状況を事前把握させる。"""
         image_data = base64.b64decode(image_base64)
         image = Image.open(BytesIO(image_data))
-
-        if clipboard_text:
-            prompt = PRELOAD_PROMPT_WITH_CLIPBOARD.format(
-                clipboard_text=clipboard_text[:2000]  # 長すぎる場合は切り捨て
-            )
-        else:
-            prompt = PRELOAD_PROMPT_IMAGE_ONLY
+        prompt = PRELOAD_PROMPT_IMAGE_ONLY
 
         last_error: Exception | None = None
         for attempt in range(MAX_RETRIES + 1):
@@ -95,18 +112,12 @@ class GeminiClient:
                     contents=[prompt, image],
                 )
                 detail, display = _parse_preload_response(response.text)
-                # 選択テキストがある場合は原文をそのまま履歴に埋め込む
-                if clipboard_text:
-                    context_text = (
-                        f"[画面コンテキスト]\n{detail}\n\n"
-                        f"[ユーザーが選択したテキスト（原文）]\n{clipboard_text}"
-                    )
-                else:
-                    context_text = f"[画面コンテキスト]\n{detail}"
-                self._history = [
-                    {"role": "user", "parts": [{"text": context_text}]},
-                    {"role": "model", "parts": [{"text": "画面の内容を確認しました。何かご質問はありますか？"}]},
-                ]
+                context_text = f"[画面コンテキスト]\n{detail}"
+                with self._history_lock:
+                    self._history = [
+                        {"role": "user", "parts": [{"text": context_text}]},
+                        {"role": "model", "parts": [{"text": "画面の内容を確認しました。何かご質問はありますか？"}]},
+                    ]
                 logger.debug("preload_context succeeded")
                 return PreloadResult(success=True, context_summary=detail,
                                      display_message=display,
@@ -119,12 +130,14 @@ class GeminiClient:
                     time.sleep(wait)
                 else:
                     logger.error("preload_context failed: %s - %s", type(e).__name__, e)
-                    self._history = []
+                    with self._history_lock:
+                        self._history = []
                     return PreloadResult(success=False, context_summary=None,
                                          display_message=None,
                                          chat_session=None, error_message=str(e))
 
-        self._history = []
+        with self._history_lock:
+            self._history = []
         return PreloadResult(success=False, context_summary=None,
                              display_message=None,
                              chat_session=None, error_message=str(last_error))
@@ -135,7 +148,9 @@ class GeminiClient:
 
         on_chunk が指定された場合はストリーミングで返す（リトライなし）。
         """
-        contents = self._history + [
+        with self._history_lock:
+            history_snapshot = list(self._history)
+        contents = history_snapshot + [
             {"role": "user", "parts": [{"text": user_input}]}
         ]
 
@@ -150,9 +165,10 @@ class GeminiClient:
                     if chunk.text:
                         full_text += chunk.text
                         on_chunk(chunk.text)
-                self._history = contents + [
-                    {"role": "model", "parts": [{"text": full_text}]}
-                ]
+                with self._history_lock:
+                    self._history = contents + [
+                        {"role": "model", "parts": [{"text": full_text}]}
+                    ]
                 logger.debug("generate_response(stream) succeeded: length=%d", len(full_text))
                 return full_text
             except Exception as e:
@@ -168,9 +184,10 @@ class GeminiClient:
                     contents=contents,
                 )
                 result = response.text
-                self._history = contents + [
-                    {"role": "model", "parts": [{"text": result}]}
-                ]
+                with self._history_lock:
+                    self._history = contents + [
+                        {"role": "model", "parts": [{"text": result}]}
+                    ]
                 logger.debug("generate_response succeeded: length=%d", len(result))
                 return result
             except Exception as e:
@@ -185,9 +202,46 @@ class GeminiClient:
 
         raise last_error  # type: ignore[misc]
 
+    def deepen_context(self, image_base64: str, stage1_detail: str) -> DeepThinkingResult:
+        """Stage 2: thinkingモデルで画面をより深く分析する。
+
+        Stage 1 の結果と同じスクリーンショットを使い、詳細なコンテキストを生成する。
+        """
+        image_data = base64.b64decode(image_base64)
+        image = Image.open(BytesIO(image_data))
+        prompt = DEEP_THINKING_PROMPT.format(stage1_detail=stage1_detail)
+
+        try:
+            response = self._client.models.generate_content(
+                model=DEEP_THINKING_MODEL,
+                contents=[prompt, image],
+                config=types.GenerateContentConfig(
+                    thinking_config=types.ThinkingConfig(thinking_budget=DEEP_THINKING_BUDGET)
+                ),
+            )
+            detail, display = _parse_deep_response(response.text)
+            enriched = f"[画面コンテキスト（詳細分析）]\n{detail}"
+            logger.debug("deepen_context succeeded")
+            return DeepThinkingResult(success=True, enriched_context=enriched,
+                                      display_message=display, error_message=None)
+        except Exception as e:
+            logger.error("deepen_context failed: %s - %s", type(e).__name__, e)
+            return DeepThinkingResult(success=False, enriched_context=None,
+                                      display_message=None, error_message=str(e))
+
+    def update_initial_context(self, enriched_context: str) -> bool:
+        """_history[0] のコンテキスト注入部分を差し替える。会話履歴は保持する。"""
+        with self._history_lock:
+            if not self._history:
+                return False
+            self._history[0] = {"role": "user", "parts": [{"text": enriched_context}]}
+            logger.debug("update_initial_context: context replaced")
+            return True
+
     def create_session(self) -> Any:
         """会話履歴をリセットして新しいセッションを開始。"""
-        self._history = []
+        with self._history_lock:
+            self._history = []
         return self._history
 
     def is_available(self) -> bool:

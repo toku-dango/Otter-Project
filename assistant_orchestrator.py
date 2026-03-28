@@ -2,7 +2,7 @@ import logging
 import threading
 from typing import Any
 
-from gemini_client import GeminiClient
+from gemini_client import DeepThinkingResult, GeminiClient
 from hotkey_manager import HotkeyManager
 from screen_capture_service import ScreenCaptureService
 from session_manager import SessionManager
@@ -47,6 +47,7 @@ class AssistantOrchestrator:
         self._clipboard = clipboard
         self._session = None
         self._is_processing = False
+        self._deepen_token: int = 0
 
     def start(self) -> None:
         """アプリケーション起動。永続セッション開始・ホットキー登録。"""
@@ -81,16 +82,8 @@ class AssistantOrchestrator:
         threading.Thread(target=self._preload_worker, daemon=True).start()
 
     def _preload_worker(self) -> None:
-        """バックグラウンドスレッド: クリップボード読み取り → キャプチャ → Gemini事前把握。"""
-        # クリップボードのテキストを取得（選択テキストがあれば優先コンテキストに使用）
-        clipboard_text = self._clipboard.read_fresh()
-        if clipboard_text:
-            preview = clipboard_text[:100].replace('\n', ' ')
-            logger.info("preload context: [クリップボード+画像] 選択テキスト(%d文字) → 「%s%s」",
-                        len(clipboard_text), preview, "…" if len(clipboard_text) > 100 else "")
-        else:
-            logger.info("preload context: [画像のみ]")
-
+        """バックグラウンドスレッド: キャプチャ → Gemini事前把握。"""
+        logger.info("preload context: [画像のみ]")
         capture_result = self._capture.capture()
 
         if not capture_result.success:
@@ -101,10 +94,8 @@ class AssistantOrchestrator:
             )
             return
 
-        preload_result = self._gemini.preload_context(
-            capture_result.image_base64,
-            clipboard_text=clipboard_text,
-        )
+        img_b64 = capture_result.image_base64
+        preload_result = self._gemini.preload_context(img_b64)
         self._widget.after(
             0,
             lambda: self._on_preload_done(
@@ -112,11 +103,13 @@ class AssistantOrchestrator:
                 chat=preload_result.chat_session,
                 summary=preload_result.context_summary,
                 display_message=preload_result.display_message,
+                image_base64=img_b64,
             ),
         )
 
     def _on_preload_done(self, success: bool, chat: Any, summary: str | None,
-                         display_message: str | None = None) -> None:
+                         display_message: str | None = None,
+                         image_base64: str | None = None) -> None:
         """UIスレッド: 事前把握完了後の状態更新（PAT-02）。"""
         if success and chat is not None:
             self._session.chat_session = chat
@@ -125,10 +118,45 @@ class AssistantOrchestrator:
             if display_message:
                 self._widget.set_context_summary(display_message)
             self._widget.set_state("IDLE")
-            self._widget.set_status_message("画面を確認しました ✓")
+            # Stage 2: thinkingモデルで深い分析をバックグラウンド実行
+            if image_base64 and summary:
+                self._widget.set_status_message("詳細分析中...")
+                self._deepen_token += 1
+                token = self._deepen_token
+                threading.Thread(
+                    target=self._deepen_worker,
+                    args=(image_base64, summary, token),
+                    daemon=True,
+                ).start()
+            else:
+                self._widget.set_status_message("画面を確認しました ✓")
         else:
             self._widget.set_state("IDLE")
             self._widget.set_status_message(ERROR_MESSAGES["capture"])
+
+    def _deepen_worker(self, image_base64: str, stage1_detail: str, token: int) -> None:
+        """バックグラウンドスレッド: thinkingモデルによる深い画面分析（Stage 2）。"""
+        result = self._gemini.deepen_context(image_base64, stage1_detail)
+        if token != self._deepen_token:
+            logger.debug("_deepen_worker: stale token, skipping (new preload occurred)")
+            return
+        self._widget.after(0, lambda: self._on_deepen_done(result, token))
+
+    def _on_deepen_done(self, result: DeepThinkingResult, token: int) -> None:
+        """Stage 2 完了後の処理。古いトークンなら何もしない。"""
+        if token != self._deepen_token:
+            return
+        if not result.success:
+            logger.debug("deepen_context failed silently, keeping Stage 1 context")
+            return
+        self._gemini.update_initial_context(result.enriched_context)
+        if self._session and result.enriched_context:
+            self._session_mgr.update_preload_summary(
+                self._session.session_id, result.enriched_context
+            )
+        if result.display_message:
+            self._widget.set_context_summary(result.display_message)
+        self._widget.set_status_message("詳細分析完了 ✓")
 
     def on_user_input(self, text: str) -> None:
         """ユーザーテキスト送信イベント（FL-04）。
