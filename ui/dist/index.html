@@ -170,6 +170,17 @@
       padding: 7px 16px; cursor: pointer; transition: background .15s, opacity .15s; }
     .send-btn:hover:not(:disabled) { background: var(--accent-hov); }
     .send-btn:disabled { opacity: .4; cursor: not-allowed; }
+    .mic-btn { flex-shrink: 0; width: 36px; height: 36px; background: var(--surface2);
+      border: 1px solid var(--border); border-radius: 50%; color: var(--text-sub);
+      font-size: 15px; cursor: pointer; transition: all .15s;
+      display: flex; align-items: center; justify-content: center; padding: 0; }
+    .mic-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .mic-btn:disabled { opacity: .4; cursor: not-allowed; }
+    .mic-btn.recording { background: rgba(231,76,60,.15); border-color: #e74c3c;
+      color: #e74c3c; animation: pulse-mic 1s ease-in-out infinite; }
+    .mic-btn.unavailable { display: none; }
+    @keyframes pulse-mic { 0%,100%{box-shadow:0 0 0 0 rgba(231,76,60,.4)}
+                            50%{box-shadow:0 0 0 5px rgba(231,76,60,0)} }
   </style>
 </head>
 <body>
@@ -217,6 +228,7 @@
         <textarea id="input-textarea" rows="1"
           placeholder="メッセージを入力　Enter で送信"
           data-testid="input-textarea"></textarea>
+        <button class="mic-btn" id="mic-btn" title="音声入力" data-testid="mic-button">🎤</button>
         <button class="send-btn" id="send-btn" disabled data-testid="send-button">Send ↵</button>
       </div>
     </div>
@@ -304,6 +316,7 @@
     const copyBtn        = document.getElementById('copy-btn')
     const textarea       = document.getElementById('input-textarea')
     const sendBtn        = document.getElementById('send-btn')
+    const micBtn         = document.getElementById('mic-btn')
 
     let thinkingBubble  = null
     let streamingBubble = null
@@ -314,6 +327,7 @@
       const s = state.toLowerCase()
       statusEl.classList.toggle('thinking', s === 'thinking')
       textarea.disabled = (s === 'thinking')
+      micBtn.disabled   = (s === 'thinking')
       updateSendBtn()
       copyRow.classList.toggle('visible', state === 'DONE')
       if (state === 'DONE') setTimeout(() => setState('idle'), 2000)
@@ -450,6 +464,69 @@
           }
         } catch (_) {}
       }, 50)
+    }
+
+    // ── Voice input ───────────────────────────────────────────────────────
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+    let recognition   = null
+    let isRecording   = false
+    let silenceTimer  = null
+
+    if (!SR) {
+      micBtn.classList.add('unavailable')
+    } else {
+      recognition = new SR()
+      recognition.lang = 'ja-JP'
+      recognition.continuous = true
+      recognition.interimResults = true
+
+      recognition.onresult = (event) => {
+        clearTimeout(silenceTimer)
+        let final = '', interim = ''
+        for (let i = 0; i < event.results.length; i++) {
+          if (event.results[i].isFinal) final   += event.results[i][0].transcript
+          else                          interim += event.results[i][0].transcript
+        }
+        textarea.value = final + interim
+        updateSendBtn()
+        // 1.5秒無音で自動送信
+        silenceTimer = setTimeout(() => {
+          stopRecording()
+          if (textarea.value.trim()) submitText()
+        }, 1500)
+      }
+
+      recognition.onend = () => {
+        // continuous=true でも環境によって止まることがあるため再起動
+        if (isRecording) { try { recognition.start() } catch (_) {} }
+      }
+
+      recognition.onerror = (e) => {
+        console.warn('SpeechRecognition error:', e.error)
+        stopRecording()
+      }
+
+      micBtn.addEventListener('click', () => {
+        if (isRecording) stopRecording()
+        else startRecording()
+      })
+    }
+
+    function startRecording() {
+      isRecording = true
+      textarea.value = ''
+      updateSendBtn()
+      micBtn.classList.add('recording')
+      micBtn.title = '録音中（クリックで停止）'
+      try { recognition.start() } catch (_) {}
+    }
+
+    function stopRecording() {
+      isRecording = false
+      clearTimeout(silenceTimer)
+      micBtn.classList.remove('recording')
+      micBtn.title = '音声入力'
+      try { recognition.stop() } catch (_) {}
     }
 
     // ── Events ────────────────────────────────────────────────────────────
