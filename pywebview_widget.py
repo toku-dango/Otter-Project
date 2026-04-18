@@ -101,6 +101,11 @@ class PyWebViewWidget:
         self._minimized: bool = False
         self._screen_w: int = 1920
         self._screen_h: int = 1080
+        # 復元用にウィンドウ初期ジオメトリをキャッシュ
+        self._restore_x: int = 0
+        self._restore_y: int = 0
+        self._restore_w: int = 420
+        self._restore_h: int = 740
 
         self._on_submit_callback: Callable[[str], None] | None = None
         self._on_close_callback:  Callable[[], None]   | None = None
@@ -122,6 +127,7 @@ class PyWebViewWidget:
         self._screen_w, self._screen_h = sw, sh
         x = wc.x if not wc.is_default() else sw - w - 20
         y = wc.y if not wc.is_default() else sh - h - 60
+        self._restore_x, self._restore_y, self._restore_w, self._restore_h = x, y, w, h
 
         self._window = webview.create_window(
             title="Otter",
@@ -135,7 +141,7 @@ class PyWebViewWidget:
             frameless=False,
             on_top=True,
             background_color="#0e0e12",
-            min_size=(320, 240),
+            min_size=(280, 60),
         )
 
         def _after_start():
@@ -155,14 +161,9 @@ class PyWebViewWidget:
     def show(self) -> None:
         """フルサイズに戻す。最小化モードからの復帰時はウィンドウを元のサイズに戻す。"""
         if self._window and self._minimized:
-            wc = self._config.get_widget_config()
-            w = wc.width or 420
-            h = wc.height or 740
-            sw, sh = self._screen_size()
-            x = wc.x if not wc.is_default() else sw - w - 20
-            y = wc.y if not wc.is_default() else sh - h - 60
-            self._window.resize(w, h)
-            self._window.move(x, y)
+            # move→resize の順：小さいウィンドウをまず目標位置に動かしてから拡大
+            self._window.move(self._restore_x, self._restore_y)
+            self._window.resize(self._restore_w, self._restore_h)
         self._visible = True
         self._minimized = False
         self._pending_queue.put({"type": "minimize_mode", "value": False})
@@ -177,11 +178,13 @@ class PyWebViewWidget:
     def minimize(self) -> None:
         """ウィンドウを左下の小さいサイズに縮小し、最小化モードへ。
         hide() ではなく resize() を使うことで JS コンテンツが生き続ける。
+        move→resize の順：大きいウィンドウをまず目標位置に動かしてから縮小。
         """
         if self._window:
             _, sh = self._screen_size()
+            mini_y = sh - 140  # タスクバー考慮（40px）+ 余裕（28px）
+            self._window.move(20, mini_y)
             self._window.resize(360, 72)
-            self._window.move(20, sh - 96)
         self._visible = False
         self._minimized = True
         self._pending_queue.put({"type": "minimize_mode", "value": True})

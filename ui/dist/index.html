@@ -449,6 +449,7 @@
     function startAiStream() {
       if (thinkingBubble) { thinkingBubble.remove(); thinkingBubble = null }
       lastAiText = ''
+      miniText.dataset.stream = ''
       chatEmpty.style.display = 'none'
       const msg = document.createElement('div')
       msg.className = 'msg ai'
@@ -512,12 +513,25 @@
       if (update.type === 'state')           setState(update.value)
       if (update.type === 'status')          setStatus(update.value)
       if (update.type === 'context_loading') showContextLoading()
-      if (update.type === 'context')         displayContext(update.value)
+      if (update.type === 'context') {
+        displayContext(update.value)
+        if (document.body.classList.contains('minimized')) showMiniToast(update.value)
+      }
       if (update.type === 'user_message')    addMessage('user', update.value)
       if (update.type === 'ai_thinking')     showAiThinking()
-      if (update.type === 'ai_message')      displayAiMessage(update.value)
+      if (update.type === 'ai_message') {
+        displayAiMessage(update.value)
+        if (document.body.classList.contains('minimized')) showMiniToast(update.value)
+      }
       if (update.type === 'ai_stream_start') startAiStream()
-      if (update.type === 'ai_chunk')        appendAiChunk(update.value)
+      if (update.type === 'ai_chunk') {
+        appendAiChunk(update.value)
+        if (document.body.classList.contains('minimized')) {
+          // ストリーミング中はチャンクをそのまま結合して表示
+          miniText.textContent = (miniText.dataset.stream || '') + update.value
+          miniText.dataset.stream = miniText.textContent
+        }
+      }
     }
 
     function startPolling() {
