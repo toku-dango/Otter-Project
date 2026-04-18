@@ -99,6 +99,8 @@ class PyWebViewWidget:
         self._pending_queue: queue.SimpleQueue = queue.SimpleQueue()
 
         self._minimized: bool = False
+        self._screen_w: int = 1920
+        self._screen_h: int = 1080
 
         self._on_submit_callback: Callable[[str], None] | None = None
         self._on_close_callback:  Callable[[], None]   | None = None
@@ -117,6 +119,7 @@ class PyWebViewWidget:
         sw = root.winfo_screenwidth()
         sh = root.winfo_screenheight()
         root.destroy()
+        self._screen_w, self._screen_h = sw, sh
         x = wc.x if not wc.is_default() else sw - w - 20
         y = wc.y if not wc.is_default() else sh - h - 60
 
@@ -184,16 +187,9 @@ class PyWebViewWidget:
         self._pending_queue.put({"type": "minimize_mode", "value": True})
         logger.debug("PyWebViewWidget minimized (toast mode)")
 
-    @staticmethod
-    def _screen_size() -> tuple[int, int]:
-        """画面幅・高さを返す（tkinter 経由）。"""
-        import tkinter as tk
-        root = tk.Tk()
-        root.withdraw()
-        sw = root.winfo_screenwidth()
-        sh = root.winfo_screenheight()
-        root.destroy()
-        return sw, sh
+    def _screen_size(self) -> tuple[int, int]:
+        """start() でキャッシュした画面サイズを返す。"""
+        return self._screen_w, self._screen_h
 
     def is_visible(self) -> bool:
         return self._visible
