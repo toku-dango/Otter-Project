@@ -70,6 +70,11 @@ class _JsApi:
         logger.debug("JS: minimize_window")
         self._widget.minimize()
 
+    def restore_window(self) -> None:
+        """最小化モードのクリック → フルサイズに復帰。"""
+        logger.debug("JS: restore_window")
+        self._widget.show()
+
     def move_window(self, dx: int, dy: int) -> None:
         """ドラッグによるウィンドウ移動。"""
         if self._widget._window:
@@ -145,11 +150,20 @@ class PyWebViewWidget:
     # ── FloatingWidget 互換インターフェース ────────────────────────────────
 
     def show(self) -> None:
-        if self._window:
-            self._window.show()
+        """フルサイズに戻す。最小化モードからの復帰時はウィンドウを元のサイズに戻す。"""
+        if self._window and self._minimized:
+            wc = self._config.get_widget_config()
+            w = wc.width or 420
+            h = wc.height or 740
+            sw, sh = self._screen_size()
+            x = wc.x if not wc.is_default() else sw - w - 20
+            y = wc.y if not wc.is_default() else sh - h - 60
+            self._window.resize(w, h)
+            self._window.move(x, y)
         self._visible = True
         self._minimized = False
-        logger.debug("PyWebViewWidget shown")
+        self._pending_queue.put({"type": "minimize_mode", "value": False})
+        logger.debug("PyWebViewWidget shown (full)")
 
     def hide(self) -> None:
         if self._window:
@@ -158,12 +172,28 @@ class PyWebViewWidget:
         logger.debug("PyWebViewWidget hidden")
 
     def minimize(self) -> None:
-        """ウィンドウを最小化（非表示）し、最小化フラグをセット。"""
+        """ウィンドウを左下の小さいサイズに縮小し、最小化モードへ。
+        hide() ではなく resize() を使うことで JS コンテンツが生き続ける。
+        """
         if self._window:
-            self._window.hide()
+            _, sh = self._screen_size()
+            self._window.resize(360, 72)
+            self._window.move(20, sh - 96)
         self._visible = False
         self._minimized = True
-        logger.debug("PyWebViewWidget minimized")
+        self._pending_queue.put({"type": "minimize_mode", "value": True})
+        logger.debug("PyWebViewWidget minimized (toast mode)")
+
+    @staticmethod
+    def _screen_size() -> tuple[int, int]:
+        """画面幅・高さを返す（tkinter 経由）。"""
+        import tkinter as tk
+        root = tk.Tk()
+        root.withdraw()
+        sw = root.winfo_screenwidth()
+        sh = root.winfo_screenheight()
+        root.destroy()
+        return sw, sh
 
     def is_visible(self) -> bool:
         return self._visible

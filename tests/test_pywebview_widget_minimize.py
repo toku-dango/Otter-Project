@@ -17,9 +17,10 @@ def widget():
 
 # ── Cycle 1: minimize / is_minimized ──────────────────────────────────────
 
-def test_minimize_hides_window(widget):
+def test_minimize_resizes_window_to_toast_size(widget):
+    # hide() ではなく resize() で小さくする（hide するとトースト表示できない）
     widget.minimize()
-    widget._window.hide.assert_called_once()
+    widget._window.resize.assert_called_once()
 
 
 def test_minimize_sets_minimized_flag(widget):
@@ -42,6 +43,36 @@ def test_minimize_sets_visible_false(widget):
     widget._visible = True
     widget.minimize()
     assert widget.is_visible() is False
+
+
+def test_minimize_enqueues_minimize_mode(widget):
+    widget.minimize()
+    # resize などの後にキューに minimize_mode=True が積まれる
+    found = False
+    while True:
+        try:
+            item = widget._pending_queue.get_nowait()
+            if item.get("type") == "minimize_mode" and item.get("value") is True:
+                found = True
+                break
+        except Exception:
+            break
+    assert found
+
+
+def test_show_enqueues_full_mode(widget):
+    widget._minimized = True
+    widget.show()
+    found = False
+    while True:
+        try:
+            item = widget._pending_queue.get_nowait()
+            if item.get("type") == "minimize_mode" and item.get("value") is False:
+                found = True
+                break
+        except Exception:
+            break
+    assert found
 
 
 # ── Cycle 2: show_toast ────────────────────────────────────────────────────
