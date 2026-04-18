@@ -94,3 +94,36 @@ def test_show_toast_with_empty_string(widget):
     update = widget._pending_queue.get_nowait()
     assert update["type"] == "toast"
     assert update["value"] == ""
+
+
+# ── Cycle 3: chunk batching ────────────────────────────────────────────────
+
+def test_start_response_stream_resets_chunk_buffer(widget):
+    widget._chunk_buffer = "old"
+    widget.start_response_stream()
+    assert widget._chunk_buffer == ""
+
+
+def test_append_response_chunk_batches_into_single_queue_entry(widget):
+    """複数チャンクが1件のキューエントリにまとめられる。"""
+    import time
+    widget.start_response_stream()
+    widget._pending_queue.get_nowait()  # ai_stream_start を消費
+
+    widget.append_response_chunk("Hello")
+    widget.append_response_chunk(", ")
+    widget.append_response_chunk("World")
+
+    # タイマー発火を待つ（50ms + 余裕）
+    time.sleep(0.12)
+
+    update = widget._pending_queue.get_nowait()
+    assert update["type"] == "ai_chunk"
+    assert update["value"] == "Hello, World"
+
+
+def test_append_response_chunk_updates_last_response(widget):
+    widget.start_response_stream()
+    widget.append_response_chunk("ABC")
+    widget.append_response_chunk("DEF")
+    assert widget.get_last_response() == "ABCDEF"

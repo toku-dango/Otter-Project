@@ -13,6 +13,7 @@ AssistantOrchestrator はこのクラスを FloatingWidget の代替として使
 import logging
 import queue
 import threading
+import time
 from pathlib import Path
 from typing import Callable, Any
 
@@ -111,6 +112,11 @@ class PyWebViewWidget:
         self._on_close_callback:  Callable[[], None]   | None = None
         self._on_copy_callback:   Callable[[], None]   | None = None
 
+        # チャンクバッファリング（ブリッジ呼び出し数削減）
+        self._chunk_buffer: str = ""
+        self._chunk_lock = threading.Lock()
+        self._chunk_timer: threading.Timer | None = None
+
         self._api = _JsApi(self)
 
     def start(self, orchestrator_start_fn: Callable) -> None:
@@ -182,9 +188,9 @@ class PyWebViewWidget:
         """
         if self._window:
             _, sh = self._screen_size()
-            mini_y = sh - 140  # タスクバー考慮（40px）+ 余裕（28px）
+            mini_y = sh - 168
             self._window.move(20, mini_y)
-            self._window.resize(360, 72)
+            self._window.resize(360, 120)
         self._visible = False
         self._minimized = True
         self._pending_queue.put({"type": "minimize_mode", "value": True})
@@ -230,12 +236,31 @@ class PyWebViewWidget:
     def start_response_stream(self) -> None:
         """ストリーミング開始を通知（表示をリセット）。"""
         self._last_response = ""
+        with self._chunk_lock:
+            if self._chunk_timer:
+                self._chunk_timer.cancel()
+                self._chunk_timer = None
+            self._chunk_buffer = ""
         self._pending_queue.put({"type": "ai_stream_start"})
 
     def append_response_chunk(self, chunk: str) -> None:
-        """ストリーミングチャンクをキューに積む。"""
+        """チャンクをバッファに積み、50ms後にまとめてキューへ送出（ブリッジ輻輳防止）。"""
         self._last_response += chunk
-        self._pending_queue.put({"type": "ai_chunk", "value": chunk})
+        with self._chunk_lock:
+            self._chunk_buffer += chunk
+            if self._chunk_timer is None:
+                self._chunk_timer = threading.Timer(0.05, self._flush_chunks)
+                self._chunk_timer.daemon = True
+                self._chunk_timer.start()
+
+    def _flush_chunks(self) -> None:
+        """バッファに溜まったチャンクを1件のキューエントリとして送出。"""
+        with self._chunk_lock:
+            buf = self._chunk_buffer
+            self._chunk_buffer = ""
+            self._chunk_timer = None
+        if buf:
+            self._pending_queue.put({"type": "ai_chunk", "value": buf})
 
     def show_toast(self, text: str) -> None:
         """トースト通知をキューに積む（最小化モード用）。"""
