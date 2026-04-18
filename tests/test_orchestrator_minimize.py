@@ -127,3 +127,37 @@ def test_response_done_sets_state_done_when_not_minimized(orchestrator, mock_wid
     orchestrator._on_response_done(success=True)
 
     mock_widget.set_state.assert_called_with("DONE")
+
+
+# ── Cycle 5: ウォッチドッグタイマー ──────────────────────────────────────────
+
+def test_watchdog_resets_processing_flag(orchestrator, mock_widget):
+    """ウォッチドッグ発火で _is_processing が False に戻る。"""
+    orchestrator._is_processing = True
+
+    orchestrator._on_watchdog_fired()
+
+    assert orchestrator._is_processing is False
+
+
+def test_watchdog_sets_state_idle(orchestrator, mock_widget):
+    """ウォッチドッグ発火で set_state('IDLE') が呼ばれる。"""
+    orchestrator._is_processing = True
+
+    orchestrator._on_watchdog_fired()
+
+    mock_widget.set_state.assert_called_with("IDLE")
+
+
+def test_watchdog_cancelled_on_response_done(orchestrator, mock_widget):
+    """_on_response_done でウォッチドッグがキャンセルされる。"""
+    import threading
+    timer = threading.Timer(60, lambda: None)
+    timer.start()
+    orchestrator._watchdog_timer = timer
+
+    mock_widget.is_minimized.return_value = False
+    orchestrator._on_response_done(success=True)
+
+    # タイマーがキャンセルされているか（finished または cancelled）
+    assert not orchestrator._watchdog_timer

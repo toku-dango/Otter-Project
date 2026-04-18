@@ -48,6 +48,8 @@ class AssistantOrchestrator:
         self._session = None
         self._is_processing = False
         self._deepen_token: int = 0
+        self._watchdog_timer: threading.Timer | None = None
+        self._WATCHDOG_TIMEOUT = 60  # APIハング対策: 60秒で強制リセット
 
     def start(self) -> None:
         """アプリケーション起動。永続セッション開始・ホットキー登録。"""
@@ -183,6 +185,7 @@ class AssistantOrchestrator:
         self._widget.set_state("THINKING")
         self._widget.set_status_message("考え中...")
 
+        self._start_watchdog()
         threading.Thread(
             target=self._generate_worker, args=(text,), daemon=True
         ).start()
@@ -215,8 +218,28 @@ class AssistantOrchestrator:
                 0, lambda: self._on_response_done(success=False)
             )
 
+    def _start_watchdog(self) -> None:
+        """APIハング対策: 60秒後に強制リセットするタイマーを開始。"""
+        self._cancel_watchdog()
+        self._watchdog_timer = threading.Timer(
+            self._WATCHDOG_TIMEOUT, self._on_watchdog_fired
+        )
+        self._watchdog_timer.daemon = True
+        self._watchdog_timer.start()
+
+    def _cancel_watchdog(self) -> None:
+        if self._watchdog_timer:
+            self._watchdog_timer.cancel()
+            self._watchdog_timer = None
+
+    def _on_watchdog_fired(self) -> None:
+        """ウォッチドッグ発火: THINKING のまま60秒経過 → 強制リセット。"""
+        logger.warning("Watchdog fired: resetting stuck THINKING state")
+        self._widget.after(0, lambda: self._on_response_done(success=False))
+
     def _on_response_done(self, success: bool) -> None:
         """応答生成完了後の状態更新。最小化中はトーストで通知。"""
+        self._cancel_watchdog()
         self._is_processing = False
         if success:
             if self._widget.is_minimized():
