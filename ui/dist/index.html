@@ -189,17 +189,18 @@
     .minimize-btn:hover { background: var(--surface2); color: var(--text); }
 
     /* ── Minimized (toast) mode ── */
-    #mini-view { display: none; align-items: center; gap: 10px;
-      width: 100%; height: 100%; padding: 0 16px; cursor: pointer;
+    #mini-view { display: none; flex-direction: column; align-items: flex-start;
+      width: 100%; height: 100%; padding: 8px 12px 6px; cursor: pointer;
       background: var(--surface); border: 1px solid var(--accent);
       border-radius: 14px; user-select: none;
       transform: translateY(30px) scale(.9); opacity: 0;
       transition: transform .28s cubic-bezier(.34,1.56,.64,1), opacity .22s ease; }
     #mini-view.show { transform: translateY(0) scale(1); opacity: 1; }
-    #mini-icon { font-size: 20px; flex-shrink: 0; }
-    #mini-text { font-size: 12px; color: var(--text); flex: 1;
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    #mini-hint { font-size: 10px; color: var(--text-sub); flex-shrink: 0; }
+    #mini-text { font-size: 12px; color: var(--text); line-height: 1.45;
+      overflow: hidden; display: -webkit-box;
+      -webkit-line-clamp: 3; -webkit-box-orient: vertical; width: 100%; }
+    #mini-hint { font-size: 9px; color: var(--text-sub); margin-top: auto;
+      align-self: flex-end; }
 
     body.minimized .app { display: none; }
     body.minimized #mini-view { display: flex; }
@@ -208,9 +209,8 @@
 <body>
   <!-- Minimized (toast) mode view -->
   <div id="mini-view">
-    <span id="mini-icon">🦦</span>
     <span id="mini-text">Otter — クリックして開く</span>
-    <span id="mini-hint">tap to expand</span>
+    <span id="mini-hint">🦦 タップして展開</span>
   </div>
 
   <div class="app">
@@ -475,6 +475,7 @@
     // ── Minimized mode (mini-view) ─────────────────────────────────────────
     const miniView  = document.getElementById('mini-view')
     const miniText  = document.getElementById('mini-text')
+    const miniHint  = document.getElementById('mini-hint')
     let   miniTimer = null
 
     miniView.addEventListener('click', () => {
@@ -484,6 +485,7 @@
     function enterMinimized() {
       document.body.classList.add('minimized')
       miniText.textContent = 'Otter — クリックして開く'
+      miniHint.textContent = '🦦 タップして展開'
       requestAnimationFrame(() => miniView.classList.add('show'))
     }
 
@@ -497,10 +499,7 @@
     function showMiniToast(text) {
       clearTimeout(miniTimer)
       miniText.textContent = text
-      // 2.2秒後に「クリックして開く」に戻す（ウィンドウは残る）
-      miniTimer = setTimeout(() => {
-        miniText.textContent = 'Otter — クリックして開く'
-      }, 2200)
+      miniHint.textContent = '🦦 タップして展開'
     }
 
     function applyUpdate(update) {
