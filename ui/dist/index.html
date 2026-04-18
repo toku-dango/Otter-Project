@@ -506,6 +506,8 @@
 
       recognition.onerror = (e) => {
         console.warn('SpeechRecognition error:', e.error)
+        // no-speech/aborted は一時的なエラーなので録音継続（onend が再起動する）
+        if (e.error === 'no-speech' || e.error === 'aborted') return
         stopRecording()
       }
 
