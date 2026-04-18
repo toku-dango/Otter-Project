@@ -161,3 +161,42 @@ def test_watchdog_cancelled_on_response_done(orchestrator, mock_widget):
 
     # タイマーがキャンセルされているか（finished または cancelled）
     assert not orchestrator._watchdog_timer
+
+
+# ── Cycle 6: ホットキーで履歴・チャットをクリア ──────────────────────────────
+
+def test_hotkey_clears_gemini_history(orchestrator, mock_widget, mock_gemini):
+    """ホットキー発火で Gemini の会話履歴がクリアされる。"""
+    mock_widget.is_visible.return_value = False
+    mock_widget.is_minimized.return_value = False
+
+    with patch("threading.Thread") as mock_thread:
+        mock_thread.return_value.start = MagicMock()
+        orchestrator.on_hotkey_triggered()
+
+    mock_gemini.create_session.assert_called()
+
+
+def test_hotkey_clears_chat_display(orchestrator, mock_widget):
+    """ホットキー発火で clear_chat() が呼ばれる。"""
+    mock_widget.is_visible.return_value = False
+    mock_widget.is_minimized.return_value = False
+
+    with patch("threading.Thread") as mock_thread:
+        mock_thread.return_value.start = MagicMock()
+        orchestrator.on_hotkey_triggered()
+
+    mock_widget.clear_chat.assert_called_once()
+
+
+def test_hotkey_resets_is_processing(orchestrator, mock_widget):
+    """ホットキー発火で _is_processing がリセットされる（前の処理が中断される）。"""
+    orchestrator._is_processing = True
+    mock_widget.is_visible.return_value = False
+    mock_widget.is_minimized.return_value = False
+
+    with patch("threading.Thread") as mock_thread:
+        mock_thread.return_value.start = MagicMock()
+        orchestrator.on_hotkey_triggered()
+
+    assert orchestrator._is_processing is False

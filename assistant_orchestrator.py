@@ -74,7 +74,17 @@ class AssistantOrchestrator:
         - フル表示中 → minimize() してキャプチャ（写り込み防止）
         - 最小化中  → そのままキャプチャ（すでに非表示）
         - 非表示    → show() してフル表示でキャプチャ
+
+        画面キャプチャのたびに会話履歴・表示をリセットする。
+        進行中の処理（generate/deepen）は放棄して新しいセッションを開始する。
         """
+        # 進行中の処理を中断してクリーンな状態にする
+        self._cancel_watchdog()
+        self._is_processing = False
+        self._deepen_token += 1  # 古い deepen 結果を無効化
+        self._gemini.create_session()  # 会話履歴・過去キャプチャ結果をすべてクリア
+        self._widget.clear_chat()      # チャット表示をリセット
+
         if self._widget.is_visible():
             self._widget.minimize()
         elif not self._widget.is_minimized():

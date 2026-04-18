@@ -267,6 +267,12 @@ class PyWebViewWidget:
         self._pending_queue.put({"type": "toast", "value": text})
         logger.debug("show_toast: length=%d (queued)", len(text))
 
+    def clear_chat(self) -> None:
+        """チャット表示・コンテキストパネルをリセットする。"""
+        self._last_response = ""
+        self._pending_queue.put({"type": "clear_chat"})
+        logger.debug("clear_chat (queued)")
+
     def set_context_summary(self, text: str) -> None:
         """画面分析結果をキューに積む（上パネル表示用）。"""
         self._pending_queue.put({"type": "context", "value": text})

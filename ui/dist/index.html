@@ -395,6 +395,13 @@
       contextText.classList.add('visible')
     }
 
+    function hideContext() {
+      contextLoading.classList.remove('visible')
+      contextText.classList.remove('visible')
+      contextText.textContent = ''
+      contextEmpty.style.display = ''
+    }
+
     // ── Chat panel ─────────────────────────────────────────────────────────
     function now() {
       return new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
@@ -515,6 +522,18 @@
         return
       }
       if (update.type === 'toast') { showMiniToast(update.value); return }
+      if (update.type === 'clear_chat') {
+        // 過去のチャット・コンテキストをすべてクリアして新しいセッションを開始
+        chatMessages.innerHTML = ''
+        chatMessages.appendChild(chatEmpty)
+        chatEmpty.style.display = ''
+        thinkingBubble = null
+        streamingBubble = null
+        lastAiText = ''
+        hideContext()
+        copyRow.classList.remove('visible')
+        return
+      }
       if (update.type === 'state')           setState(update.value)
       if (update.type === 'status')          setStatus(update.value)
       if (update.type === 'context_loading') showContextLoading()
