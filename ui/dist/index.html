@@ -355,17 +355,12 @@
     // ── State ──────────────────────────────────────────────────────────────
     function setState(state) {
       const s = state.toLowerCase()
-      const wasThinking = textarea.disabled
       statusEl.classList.toggle('thinking', s === 'thinking')
       textarea.disabled = (s === 'thinking')
       micBtn.disabled   = (s === 'thinking')
       updateSendBtn()
       copyRow.classList.toggle('visible', state === 'DONE')
       if (state === 'DONE') setTimeout(() => setState('idle'), 2000)
-      // THINKING 解除時: textarea にテキストが残っていれば自動送信（音声入力対策）
-      if (wasThinking && s !== 'thinking' && textarea.value.trim()) {
-        setTimeout(() => { if (textarea.value.trim()) submitText() }, 100)
-      }
     }
 
     function setStatus(msg) { statusEl.textContent = msg }
