@@ -489,10 +489,13 @@
         }
         textarea.value = final + interim
         updateSendBtn()
-        // 1.5秒無音で自動送信
+        // 1.5秒無音で自動送信（録音は継続）
         silenceTimer = setTimeout(() => {
-          stopRecording()
-          if (textarea.value.trim()) submitText()
+          if (textarea.value.trim() && !textarea.disabled) {
+            submitText()
+            // isRecording=true のまま stop → onend が再 start してバッファをリセット
+            if (isRecording) try { recognition.stop() } catch (_) {}
+          }
         }, 1500)
       }
 
