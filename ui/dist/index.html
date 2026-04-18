@@ -181,9 +181,28 @@
     .mic-btn.unavailable { display: none; }
     @keyframes pulse-mic { 0%,100%{box-shadow:0 0 0 0 rgba(231,76,60,.4)}
                             50%{box-shadow:0 0 0 5px rgba(231,76,60,0)} }
+
+    /* ── Minimize button ── */
+    .minimize-btn { flex-shrink: 0; background: transparent; border: none;
+      color: var(--text-sub); font-size: 15px; cursor: pointer; padding: 2px 6px;
+      border-radius: 6px; transition: background .15s, color .15s; margin-left: auto; }
+    .minimize-btn:hover { background: var(--surface2); color: var(--text); }
+
+    /* ── Toast notification ── */
+    #toast { position: fixed; bottom: 24px; left: 24px; max-width: 340px;
+      background: var(--surface); border: 1px solid var(--accent);
+      border-radius: 14px; padding: 12px 16px; font-size: 13px; color: var(--text);
+      line-height: 1.6; box-shadow: 0 8px 32px rgba(0,0,0,.6);
+      transform: translateY(20px) scale(.95); opacity: 0;
+      transition: transform .25s cubic-bezier(.34,1.56,.64,1), opacity .2s ease;
+      pointer-events: none; z-index: 9999; white-space: pre-wrap; word-break: break-word; }
+    #toast.show { transform: translateY(0) scale(1); opacity: 1; }
   </style>
 </head>
 <body>
+  <!-- Toast notification (minimized mode) -->
+  <div id="toast"></div>
+
   <div class="app">
 
     <!-- Header -->
@@ -191,6 +210,7 @@
       <span class="header-title">Otter</span>
       <span class="header-sep">·</span>
       <span class="header-status" id="status-text">Ready</span>
+      <button class="minimize-btn" id="minimize-btn" title="最小化（トーストモード）">—</button>
     </div>
 
     <div class="main-area">
@@ -442,6 +462,17 @@
     }
 
     // ── Polling ────────────────────────────────────────────────────────────
+    // ── Toast ──────────────────────────────────────────────────────────────
+    const toastEl = document.getElementById('toast')
+    let toastTimer = null
+
+    function showToast(text) {
+      clearTimeout(toastTimer)
+      toastEl.textContent = text
+      toastEl.classList.add('show')
+      toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2200)
+    }
+
     function applyUpdate(update) {
       if (!update) return
       if (update.type === 'state')           setState(update.value)
@@ -453,6 +484,7 @@
       if (update.type === 'ai_message')      displayAiMessage(update.value)
       if (update.type === 'ai_stream_start') startAiStream()
       if (update.type === 'ai_chunk')        appendAiChunk(update.value)
+      if (update.type === 'toast')           showToast(update.value)
     }
 
     function startPolling() {
@@ -540,6 +572,10 @@
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitText() }
     })
     sendBtn.addEventListener('click', submitText)
+
+    document.getElementById('minimize-btn').addEventListener('click', () => {
+      if (window.pywebview) window.pywebview.api.minimize_window()
+    })
 
     copyBtn.addEventListener('click', () => {
       if (window.pywebview) window.pywebview.api.copy_response()

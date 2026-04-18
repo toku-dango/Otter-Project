@@ -65,6 +65,11 @@ class _JsApi:
             self._widget._window.destroy()
         sys.exit(0)
 
+    def minimize_window(self) -> None:
+        """最小化ボタン押下 → ウィジェットを最小化モードへ。"""
+        logger.debug("JS: minimize_window")
+        self._widget.minimize()
+
     def move_window(self, dx: int, dy: int) -> None:
         """ドラッグによるウィンドウ移動。"""
         if self._widget._window:
@@ -87,6 +92,8 @@ class PyWebViewWidget:
         self._visible = False
         self._last_response = ""
         self._pending_queue: queue.SimpleQueue = queue.SimpleQueue()
+
+        self._minimized: bool = False
 
         self._on_submit_callback: Callable[[str], None] | None = None
         self._on_close_callback:  Callable[[], None]   | None = None
@@ -140,7 +147,8 @@ class PyWebViewWidget:
     def show(self) -> None:
         if self._window:
             self._window.show()
-            self._visible = True
+        self._visible = True
+        self._minimized = False
         logger.debug("PyWebViewWidget shown")
 
     def hide(self) -> None:
@@ -149,8 +157,19 @@ class PyWebViewWidget:
             self._visible = False
         logger.debug("PyWebViewWidget hidden")
 
+    def minimize(self) -> None:
+        """ウィンドウを最小化（非表示）し、最小化フラグをセット。"""
+        if self._window:
+            self._window.hide()
+        self._visible = False
+        self._minimized = True
+        logger.debug("PyWebViewWidget minimized")
+
     def is_visible(self) -> bool:
         return self._visible
+
+    def is_minimized(self) -> bool:
+        return self._minimized
 
     def set_state(self, state: str) -> None:
         """状態更新をキューに積む（IDLE / THINKING / DONE）。"""
@@ -188,6 +207,11 @@ class PyWebViewWidget:
         """ストリーミングチャンクをキューに積む。"""
         self._last_response += chunk
         self._pending_queue.put({"type": "ai_chunk", "value": chunk})
+
+    def show_toast(self, text: str) -> None:
+        """トースト通知をキューに積む（最小化モード用）。"""
+        self._pending_queue.put({"type": "toast", "value": text})
+        logger.debug("show_toast: length=%d (queued)", len(text))
 
     def set_context_summary(self, text: str) -> None:
         """画面分析結果をキューに積む（上パネル表示用）。"""

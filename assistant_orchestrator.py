@@ -69,10 +69,13 @@ class AssistantOrchestrator:
     def on_hotkey_triggered(self) -> None:
         """ホットキー押下イベント処理（UIスレッドで実行）。
 
-        常に画面キャプチャ → Gemini状況把握 → 上パネルに表示。
-        ウィジェットが非表示なら表示する。
+        - フル表示中 → minimize() してキャプチャ（写り込み防止）
+        - 最小化中  → そのままキャプチャ（すでに非表示）
+        - 非表示    → show() してフル表示でキャプチャ
         """
-        if not self._widget.is_visible():
+        if self._widget.is_visible():
+            self._widget.minimize()
+        elif not self._widget.is_minimized():
             self._widget.show()
 
         self._widget.show_context_loading()
@@ -83,6 +86,10 @@ class AssistantOrchestrator:
 
     def _preload_worker(self) -> None:
         """バックグラウンドスレッド: キャプチャ → Gemini事前把握。"""
+        import time
+        # 最小化直後はウィンドウが実際に消えるまで少し待つ
+        if self._widget.is_minimized():
+            time.sleep(0.15)
         logger.info("preload context: [画像のみ]")
         capture_result = self._capture.capture()
 
@@ -209,11 +216,14 @@ class AssistantOrchestrator:
             )
 
     def _on_response_done(self, success: bool) -> None:
-        """応答生成完了後の状態更新。"""
+        """応答生成完了後の状態更新。最小化中はトーストで通知。"""
         self._is_processing = False
         if success:
-            self._widget.set_state("DONE")
-            self._widget.set_status_message("Ready")
+            if self._widget.is_minimized():
+                self._widget.show_toast(self._widget.get_last_response())
+            else:
+                self._widget.set_state("DONE")
+                self._widget.set_status_message("Ready")
         else:
             self._widget.set_state("IDLE")
             self._widget.set_status_message(ERROR_MESSAGES["response"])
