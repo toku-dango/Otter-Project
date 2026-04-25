@@ -46,7 +46,7 @@ PRELOAD_PROMPT_IMAGE_ONLY = """\
 
 STAGE1_MAX_SHORT_SIDE = 768  # Stage 1 用縮小サイズ（Stage 2 は元サイズを使用）
 
-RESPONSE_SYSTEM_INSTRUCTION = "必ず1〜2文で返すこと。会話のテンポを大切に。詳細は聞かれたら答える。"
+RESPONSE_SYSTEM_INSTRUCTION = "必ず1〜2文で返すこと。「〜かな？」「〜だよね」のようなフレンドリーな口調で話しかけること。詳細は聞かれたら答える。"
 RESPONSE_MAX_TOKENS = 150
 
 
@@ -95,7 +95,7 @@ class DeepThinkingResult:
 class GeminiClient:
     """Gemini API と通信し、画面理解・応答生成を行う（google.genai SDK）。"""
 
-    def __init__(self, api_key: str, model: str = "gemini-2.5-flash-lite") -> None:
+    def __init__(self, api_key: str, model: str = "gemini-2.5-flash") -> None:
         self._client = genai.Client(api_key=api_key)
         self._model = model
         # 会話履歴: [{"role": "user"/"model", "parts": [{"text": "..."}]}]
