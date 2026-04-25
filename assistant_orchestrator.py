@@ -71,15 +71,13 @@ class AssistantOrchestrator:
     def on_hotkey_triggered(self) -> None:
         """ホットキー押下イベント処理（UIスレッドで実行）。
 
-        画面キャプチャのたびに会話履歴・表示をリセットする。
-        進行中の処理（generate/deepen）は放棄して新しいセッションを開始する。
+        会話履歴・チャット表示は引き継ぎ、新しい画面キャプチャのみ追加する。
+        進行中の処理（generate/deepen）は放棄して再キャプチャを開始する。
         """
         # 進行中の処理を中断してクリーンな状態にする
         self._cancel_watchdog()
         self._is_processing = False
         self._deepen_token += 1  # 古い deepen 結果を無効化
-        self._gemini.create_session()  # 会話履歴・過去キャプチャ結果をすべてクリア
-        self._widget.clear_chat()      # チャット表示をリセット
 
         self._widget.show_context_loading()
         self._widget.set_state("THINKING")
