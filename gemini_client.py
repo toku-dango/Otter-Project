@@ -47,7 +47,6 @@ PRELOAD_PROMPT_IMAGE_ONLY = """\
 STAGE1_MAX_SHORT_SIDE = 768  # Stage 1 用縮小サイズ（Stage 2 は元サイズを使用）
 
 RESPONSE_SYSTEM_INSTRUCTION = "必ず1〜2文で返すこと。「〜かな？」「〜だよね」のようなフレンドリーな口調で話しかけること。詳細は聞かれたら答える。"
-RESPONSE_MAX_TOKENS = 150
 
 
 
@@ -181,7 +180,6 @@ class GeminiClient:
                     contents=contents,
                     config=types.GenerateContentConfig(
                         system_instruction=RESPONSE_SYSTEM_INSTRUCTION,
-                        max_output_tokens=RESPONSE_MAX_TOKENS,
                     ),
                 ):
                     if chunk.text:
@@ -206,7 +204,6 @@ class GeminiClient:
                     contents=contents,
                     config=types.GenerateContentConfig(
                         system_instruction=RESPONSE_SYSTEM_INSTRUCTION,
-                        max_output_tokens=RESPONSE_MAX_TOKENS,
                     ),
                 )
                 result = response.text
