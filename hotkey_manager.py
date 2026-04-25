@@ -13,7 +13,7 @@ class HotkeyManager:
     UI操作が必要な場合はコールバック内で widget.after(0, fn) を使うこと。
     """
 
-    def __init__(self, hotkey_combo: str = "<ctrl>+<alt>+o") -> None:
+    def __init__(self, hotkey_combo: str = "<ctrl>+<shift>+z") -> None:
         self._hotkey_combo = hotkey_combo
         self._listener: keyboard.GlobalHotKeys | None = None
 
