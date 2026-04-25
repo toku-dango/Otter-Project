@@ -46,6 +46,9 @@ PRELOAD_PROMPT_IMAGE_ONLY = """\
 
 STAGE1_MAX_SHORT_SIDE = 768  # Stage 1 用縮小サイズ（Stage 2 は元サイズを使用）
 
+RESPONSE_SYSTEM_INSTRUCTION = "必ず1〜2文で返すこと。会話のテンポを大切に。詳細は聞かれたら答える。"
+RESPONSE_MAX_TOKENS = 150
+
 
 
 def _parse_preload_response(text: str) -> tuple[str, str]:
@@ -176,6 +179,10 @@ class GeminiClient:
                 for chunk in self._client.models.generate_content_stream(
                     model=self._model,
                     contents=contents,
+                    config=types.GenerateContentConfig(
+                        system_instruction=RESPONSE_SYSTEM_INSTRUCTION,
+                        max_output_tokens=RESPONSE_MAX_TOKENS,
+                    ),
                 ):
                     if chunk.text:
                         full_text += chunk.text
@@ -197,6 +204,10 @@ class GeminiClient:
                 response = self._client.models.generate_content(
                     model=self._model,
                     contents=contents,
+                    config=types.GenerateContentConfig(
+                        system_instruction=RESPONSE_SYSTEM_INSTRUCTION,
+                        max_output_tokens=RESPONSE_MAX_TOKENS,
+                    ),
                 )
                 result = response.text
                 with self._history_lock:
